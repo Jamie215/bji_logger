@@ -1,0 +1,224 @@
+.navbar-brand {
+    font-weight: bold;
+}
+
+.nav-link {
+    font-family: 'Roboto';
+    font-size: 16px;
+    color: cornflowerblue !important;
+}
+
+.nav-link.active {
+    font-weight: bold;
+    background-color: white;
+    color: midnightblue !important;
+}
+
+body {
+    background-color: ghostwhite;
+}
+
+.modal-header {
+    background-color: cornflowerblue;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+.modal-header-text {
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+}
+
+/* Datepicker from "Initialize Device" */
+.DateInput {
+    overflow: visible;
+    min-width: 180px;
+}
+
+.DateInput_input {
+    font-family: 'Roboto';
+    font-size: 16px;
+    font-weight: normal;
+    width: 160px;
+    color: black;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.DateInput_input__focused {
+    min-width: 180px;
+    border-bottom-color: cornflowerblue;
+}
+
+.DayPickerKeyboardShortcuts_show__bottomRight::before {
+    border-right-color: cornflowerblue;
+}
+
+.CalendarDay__selected {
+    background-color: cornflowerblue;
+    color: white;
+}
+
+.CalendarDay__selected:hover {
+    background-color: cornflowerblue;
+    color: white;
+}
+
+.Select-value {
+    font-family: "Roboto";
+    font-size: 16px;
+    color: black;
+}
+
+.dropdown-label {
+    color: cornflowerblue;
+    font-weight: bold;
+    display: block;
+}
+
+/* Buttons from "Initialize Arduino */
+.initialize-button {
+    background-color: cornflowerblue;
+    color: white;
+}
+
+/* Download from "Data Download" */
+.download-button {
+    background-color: cornflowerblue;
+    color: white;
+    width: 150px;
+    display: inline-block;
+}
+
+/* Colour Theme */
+.color-main {
+    color: steelblue;
+}
+
+.color-sub {
+    color: midnightblue;
+}
+
+/* Page Elements */
+.page-button {
+    display: flex;
+    width: 200px;
+    height: 100px;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    font-size: 18px;
+    text-decoration: none;
+}
+
+/* Flex Container */
+.flex-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Upload Box Related */
+.upload-box {
+    border-width: 2px;
+    border-style: dashed;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 24px;
+    border-color: steelblue;
+    color: midnightblue;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    margin: 10px 20px 40px 20px !important;
+}
+
+.upload-box:hover {
+    cursor: pointer;
+}
+
+.upload-text {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* Total Steps Related */
+.content-totalinfo {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.content-patientinfo {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Graph Section Related */
+.graph-section {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    font-family: 'Roboto';
+    background-color: white;
+}
+
+.row {
+    margin-bottom: 40px;
+}
+
+/* Card Related */
+.card-body {
+    font-family: 'Roboto', sans-serif !important;
+    background-color: ghostwhite; 
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.card-body li {
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 18px;
+    background-color: ghostwhite;
+    color: midnightblue;
+    padding: 4px;
+}
+
+.card-title {
+    color: ghostwhite;
+    background-color: cornflowerblue;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.no-padding-row > .col, .no-padding-row > [class*="col-"] {
+    padding-right: 0;
+    padding-left: 0;
+}
+
+.divider {
+    background-color: lightsteelblue;
+    height: 100%;
+    width: 2px;
+    margin: auto;
+}
