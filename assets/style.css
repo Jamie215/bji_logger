@@ -25,20 +25,31 @@ body {
 }
 
 .modal-body {
+    display: block;
+    width: 100%;
     padding: 20px;
 }
 
 .modal-footer {
+    display: block;
+    height: 70px;
+    width: 100%;
+    padding: 20px;
     padding-top: 5px;
     padding-bottom: 5px;
 }
+
 .modal-header-text {
     font-size: 18px;
     font-weight: bold;
     color: white;
 }
 
-/* Datepicker from "Initialize Device" */
+.disclaimer-msg {
+    font-size: 16px;
+    color: grey;
+}
+
 .DateInput {
     overflow: visible;
     min-width: 180px;
@@ -83,6 +94,15 @@ body {
     color: cornflowerblue;
     font-weight: bold;
     display: block;
+}
+
+.initiate-success {
+    width: 100%;
+    font-size: 50px;
+    text-align: center !important;
+    padding-top: 5px;
+    padding-bottom: 10px;
+    color: mediumseagreen;
 }
 
 /* Buttons from "Initialize Arduino */

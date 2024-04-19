@@ -2,6 +2,8 @@ from dash import dcc, html, Input, Output, State, callback_context
 import dash
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
+import webbrowser
+from threading import Timer
 import datetime
 import pytz
 import os
@@ -25,7 +27,10 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
     elif not_connected:
         status_msg = [html.Div("Arduino not found! Check the Arduino connection and try again.", className="mb-2")]
     elif selected_dt:
-        status_msg = [html.Div(f"Device initialized with date and time: {selected_dt} and powered down. It will be counting steps in the next powerup.", className="mb-2")]
+        status_msg = [
+                        html.I(className="fas fa-check-circle initiate-success"),
+                        dbc.Row(html.Div(f"The device has been initalzied for {selected_dt} and powered down. It will be counting steps in the next powerup. Please disconnect the device.", className="mb-2")),
+                    ]
     elif download:
         status_msg = [html.Div("Select from below for downloading appropriate format.", className="mb-2")]
     else:
@@ -54,7 +59,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
                             ),
                             dbc.Col(
                                 html.Div([
-                                    html.Label("Hour",
+                                    html.Label("Hour (24)",
                                                className="dropdown-label",
                                                style={'display': 'none'} if not initialize else {}),
                                     dcc.Dropdown(
@@ -85,11 +90,11 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
     
     download_view = [
                         html.Div([
-                                    dbc.Button("Download Raw Data", 
+                                    dbc.Button("Download .RAW Data", 
                                             id="download-raw", 
                                             className="ms-2 download-button",
                                             style={'display': 'none'} if not download else {}),
-                                    dbc.Button("Download Readable Data", 
+                                    dbc.Button("Download .CSV Data", 
                                             id="download-read", 
                                             className="ms-2 download-button",
                                             style={'display': 'none'} if not download else {}),
@@ -100,22 +105,39 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
     # Generate modal footer content
     if footer_view == "None":
         modal_footer = dbc.ModalFooter([
-                            dbc.Button("Previous", id="previous-modal", className="initialize-button", style={'display':'none'}),
-                            dbc.Button("Confirm", id="confirm-modal", color='success', style={'display':'none'}),
+                            dbc.Button("Previous", id="previous-modal", outline=True, color="secondary", style={'display':'none'}),
+                            dbc.Button("Connect", id="connect-modal", color='success', style={'display':'none'}),
                             dbc.Button("Initialize", id="initialize-btn", className="initialize-button", style={'display':'none'})
-                        ])
+                        ], style={'height':'0px'})
     elif footer_view == "Modal Start":
-        modal_footer = dbc.ModalFooter([
-                            dbc.Button("Previous", id="previous-modal", className="initialize-button", style={'display':'none'}),
-                            dbc.Button("Confirm", id="confirm-modal", color='success', className="ms-auto"),
-                            dbc.Button("Initialize", id="initialize-btn", className="initialize-button", style={'display':'none'})
-                        ])
+        modal_footer = dbc.ModalFooter(
+                            dbc.Row([
+                                dbc.Col(
+                                    html.Div("NOTE: Exiting this pop-up will terminate the Arduino connection process!", className="disclaimer-msg"),
+                                    width=9
+                                ),
+                                dbc.Col([
+                                    dbc.Button("Previous", id="previous-modal", outline=True, color="secondary", style={'display':'none'}),
+                                    dbc.Button("Connect", id="connect-modal", color='success', className="ms-auto"),
+                                    dbc.Button("Initialize", id="initialize-btn", className="initialize-button", style={'display':'none'}),
+                                ], width=3)
+                            ])
+                        )
     elif footer_view == "Initialize":
-        modal_footer = dbc.ModalFooter([
-                            dbc.Button("Previous", id="previous-modal", className="initialize-button"),
-                            dbc.Button("Confirm", id="confirm-modal", color='success', style={'display':'none'}),
-                            dbc.Button("Initialize", id="initialize-btn", className="initialize-button")
-                        ])
+        modal_footer = dbc.ModalFooter(
+                            dbc.Row([
+                                dbc.Col(
+                                    html.Div("NOTE: Exiting this pop-up will terminate the Arduino connection process!", className="disclaimer-msg"),
+                                    width=6,
+                                ),
+                                dbc.Col([
+                                    dbc.Button("Previous", id="previous-modal", outline=True, color="secondary", style={'margin-right': '8px'}),
+                                    dbc.Button("Connect", id="connect-modal", color='success', style={'display':'none'}),
+                                    dbc.Button("Initialize", id="initialize-btn", className="initialize-button")
+                                ], width=6)
+                            ]), 
+                            style={'height': '90px'}
+                        )
 
     return  [
                 dbc.ModalBody(status_msg + initialize_view + download_view, id='modal-body'),
@@ -175,7 +197,7 @@ app.layout = html.Div([
         [Input('open-initialize-modal', 'n_clicks'),
          Input('open-download-modal', 'n_clicks'),
          Input('previous-modal', 'n_clicks'),
-         Input('confirm-modal', 'n_clicks'),
+         Input('connect-modal', 'n_clicks'),
          Input('initialize-btn', 'n_clicks')],
         [State('action-modal', 'is_open'),
           State("action-modal", "children"),
@@ -184,12 +206,12 @@ app.layout = html.Div([
           State('hour', 'value'),
           State('minute', 'value')],
           prevent_initial_call=True)
-def toggle_action_modal(init_click, dl_click, previous_click, confirm_click, init_btn_click, is_open, curr_children, json_data, date, hour, minute):
+def toggle_action_modal(init_click, dl_click, previous_click, connect_click, init_btn_click, is_open, curr_children, json_data, date, hour, minute):
     ctx = callback_context
     triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
     # Action Type 1: "Initialize" button triggered from the index page
-    if any([x is not None for x in [init_click, dl_click, previous_click, confirm_click, init_btn_click]]):
+    if any([x is not None for x in [init_click, dl_click, previous_click, connect_click, init_btn_click]]):
         if triggered_id == 'open-initialize-modal':
             modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
             return True, modal_content, json.dumps({'is_open': True})
@@ -209,19 +231,19 @@ def toggle_action_modal(init_click, dl_click, previous_click, confirm_click, ini
             prev_content = modal_history.pop()
             return True, prev_content, json.dumps({'is_open': True})
         
-        # Action Type 4: "Confirm" button triggered from the modal
-        elif triggered_id == "confirm-modal":
+        # Action Type 4: "Connect" button triggered from the modal
+        elif triggered_id == "connect-modal":
             # Update the past modal content as we prepare new modal view
             modal_history.append(curr_children)
             arduino_status = arduino.get_device_status()
 
             if arduino.arduino_serial:
-                # Action Type 4-1: The "Confirm" button was for "Initialization"
+                # Action Type 4-1: The "Connect" button was for "Initialization"
                 if "Initialize Arduino" in str(curr_children):
                     if arduino_status == b"FIRST_POWERON" or arduino_status == b"DATA_FILE_EXISTS":
                         updated_children = [curr_children[0]] + set_modal_content(initialize=True, footer_view="Initialize")
                         return True, updated_children, json.dumps({'is_open': True})
-                # Action Type 4-2: The "Confirm" button was for "Download"
+                # Action Type 4-2: The "Connect" button was for "Download"
                 elif "Download Data" in str(curr_children):
                     if arduino_status == b"FIRST_POWERON":
                         updated_children = [
@@ -305,6 +327,10 @@ def display_page(pathname):
     else:
         return index_layout()
 
+def open_browser():
+    webbrowser.open_new("http://127.0.0.1:8050/")
+
 # Main
 if __name__ == '__main__':
+    Timer(1, open_browser).start()
     app.run_server(debug=False)
