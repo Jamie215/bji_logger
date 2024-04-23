@@ -1,4 +1,4 @@
-from dash import dcc, html, Input, Output, State, callback_context
+from dash import dcc, html, Input, Output, State, exceptions, callback_context
 import dash
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
@@ -18,7 +18,7 @@ import arduino
 modal_history = []
 
 # Set modal content for body and footer
-def set_modal_content(initialize=False, selected_dt=None, download=False, not_connected=False, error=None, footer_view="None"):
+def set_modal_content(initialize=False, selected_dt=None, download=False, error=None, footer_view="None"):
 
     # Generate modal body content
     status_msg = []
@@ -27,23 +27,16 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
                         html.Div("Please set the date and time for device initialization.", className="mb-2"),
                         dbc.Button("Close", id='close-modal', style={"display":"None"}),
                     ]
-    elif not_connected:
-        status_msg = [
-                        html.Div("Arduino not found! Check the Arduino connection and try again.", className="mb-2"),
-                        html.Div(
-                                        [
-                                            dbc.Button("Re-Initialize", id="re-initialize-btn", className='initialize-button'),
-                                            dbc.Button("Close", id="close-modal", outline=True, color="secondary", style={'margin-left': '10px'}),
-                                        ],
-                                        style={'text-align':'center'})
-                    ]
     elif selected_dt:
         status_msg = [
                         html.I(className="fas fa-check-circle initiate-success"),
                         dbc.Row(html.Div(["The device has been initialized for ",
-                                          html.Span(selected_dt, style={'color': 'CornFlowerBlue', 'font-weight':'bold'}),
-                                          " and powered down. It will be counting steps in the next powerup. Please disconnect the device."
-                                          ])),
+                                            html.Span(selected_dt, style={'color': 'CornFlowerBlue', 'font-weight':'bold'}),
+                                            ". and powered down.",
+                                            html.Br(),
+                                            html.Br(),
+                                            " It will be counting steps in the next powerup. You may now disconnect the device."
+                                        ])),
                         html.Div(
                                     [
                                         dbc.Button("Re-Initialize", id="re-initialize-btn", outline=True, color="secondary"),
@@ -61,8 +54,10 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
         status_msg = [
                         html.I(className="fas fa-times-circle initiate-fail"),
                         dbc.Row(html.Div(["The initialization has failed due to the following error: ",
-                                          html.Span(error, style={'color':'Coral', 'font-weight':'bold'}),
-                                          " If you want to continue initializing the device, click the Re-Initiate button."
+                                          html.Br(),
+                                          html.Span(error, className="error-message"),
+                                          html.Br(),
+                                          " If you want to continue initializing the device, restart the initializing process by clicking the 'Re-Initialize' button below."
                                         ])),
                         html.Div(
                                         [
@@ -144,37 +139,12 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, not_co
     
     # Generate modal footer content
     if footer_view == "None":
-        if not_connected:
-            modal_footer = dbc.ModalFooter(
-                            dbc.Row([
-                                dbc.Col(
-                                    html.I(className="fas fa-exclamation-circle disclaimer-msg"),
-                                    width=1,
-                                    align='top'
-                                ),
-                                dbc.Col(
-                                    html.Div("Exiting this pop-up will terminate the Arduino connection process!", className="disclaimer-msg"),
-                                    width=11,
-                                    align='center'
-                                ),
-                                dbc.Col([
-                                    dbc.Button("Previous", id="previous-modal", style={'display':'none'}),
-                                    dbc.Button("Connect", id="connect-modal", style={'display':'none'}),
-                                    dbc.Button("Initialize", id="initialize-btn", style={'display':'none'}),
-                                    dbc.Button("Re-Initialize", id="re-initialize-btn", style={'display':'none'})
-                                ], 
-                                width=0,
-                                align='center')
-                            ])
-                        )
-        else:
-
-            modal_footer = dbc.ModalFooter([
-                                dbc.Button("Previous", id="previous-modal", style={'display':'none'}),
-                                dbc.Button("Connect", id="connect-modal", style={'display':'none'}),
-                                dbc.Button("Initialize", id="initialize-btn", style={'display':'none'}),
-                                dbc.Button("Re-Initialize", id="re-initialize-btn", style={'display':'none'})
-                            ], style={'height':'0px'})
+        modal_footer = dbc.ModalFooter([
+                            dbc.Button("Previous", id="previous-modal", style={'display':'none'}),
+                            dbc.Button("Connect", id="connect-modal", style={'display':'none'}),
+                            dbc.Button("Initialize", id="initialize-btn", style={'display':'none'}),
+                            dbc.Button("Re-Initialize", id="re-initialize-btn", style={'display':'none'})
+                        ], style={'height':'0px'})
 
     elif footer_view == "Modal Start":
         modal_footer = dbc.ModalFooter(
@@ -300,83 +270,78 @@ def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, con
 
     # Action Type 1: "Initialize" button triggered from the index page
     if any([x is not None for x in [init_click, re_init_click, dl_click, previous_click, connect_click, init_btn_click, close_click]]):
-        if triggered_id in ['open-initialize-modal','re-initialize-btn']:
-            modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
-            return True, modal_content, json.dumps({'is_open': True})
-        
-        # Action Type 2: "Download" button triggered from the index page
-        elif triggered_id == "open-download-modal":
-            modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
-            return True, modal_content, json.dumps({'is_open': True})
-        
-        # Action Type 3: "Previous" button triggered from the modal
-        elif triggered_id == "previous-modal":
-            # Disconnect the serial connection if one exists
-            if arduino.arduino_serial:
-                arduino.disconnect_arduino()
-
-            # Render previous modal content in DOM
-            prev_content = modal_history.pop()
-            return True, prev_content, json.dumps({'is_open': True})
-        
-        # Action Type 4: "Connect" button triggered from the modal
-        elif triggered_id == "connect-modal":
-            # Update the past modal content as we prepare new modal view
-            modal_history.append(curr_children)
-            arduino_status = arduino.get_device_status()
-            if arduino_status:
-                if "Error" in str(arduino_status):
-                    updated_children = [curr_children[0]] + set_modal_content(error=arduino_status)
-                    return True, updated_children, json.dumps({'is_open': True})
-            if arduino.arduino_serial:
-                # Action Type 4-1: The "Connect" button was for "Initialization"
-                if "Initialize Arduino" in str(curr_children):
-                    if arduino_status == b"FIRST_POWERON" or arduino_status == b"DATA_FILE_EXISTS":
-                        updated_children = [curr_children[0]] + set_modal_content(initialize=True, footer_view="Initialize")
-                        return True, updated_children, json.dumps({'is_open': True})
-                # Action Type 4-2: The "Connect" button was for "Download"
-                elif "Download Data" in str(curr_children):
-                    if arduino_status == b"FIRST_POWERON":
-                        updated_children = [
-                                                curr_children[0],
-                                                dbc.ModalBody("First time initiating the device! No data available"),
-                                                curr_children[2]
-                                            ]
-                        return True, updated_children, json.dumps({'is_open': True})
-                    elif arduino_status == b"DATA_FILE_EXISTS":
-                        updated_children = [curr_children[0]] + set_modal_content(download=True)
-                        return True, updated_children, json.dumps({'is_open': True})
-            # Action Type 4-3: Arduino serial connection is not made
-            else:
-                updated_children = [curr_children[0]] + set_modal_content(not_connected=True)
-                return True, updated_children, json.dumps({'is_open': True})
+        try:
+            if triggered_id in ['open-initialize-modal','re-initialize-btn']:
+                modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
+                return True, modal_content, json.dumps({'is_open': True})
             
-        # Action Type 5: "Initialize" button triggered from the button    
-        elif triggered_id == "initialize-btn":
-            # Update the past modal content as we prepare new modal view
-            modal_history.append(curr_children)
-
-            # Convert selected date and time to epoch time
-            selected_datetime = datetime.datetime.strptime(date, '%Y-%m-%d')
-            selected_datetime = selected_datetime.replace(hour=int(hour), minute=int(minute))
+            # Action Type 2: "Download" button triggered from the index page
+            elif triggered_id == "open-download-modal":
+                modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
+                return True, modal_content, json.dumps({'is_open': True})
             
-            timezone = pytz.timezone("UTC")
+            # Action Type 3: "Previous" button triggered from the modal
+            elif triggered_id == "previous-modal":
+                # Disconnect the serial connection if one exists
+                if arduino.arduino_serial:
+                    arduino.disconnect_arduino()
 
-            selected_datetime = timezone.localize(selected_datetime)
-            epoch_time = int(selected_datetime.astimezone(pytz.utc).timestamp())
+                # Render previous modal content in DOM
+                prev_content = modal_history.pop()
+                return True, prev_content, json.dumps({'is_open': True})
+            
+            # Action Type 4: "Connect" button triggered from the modal
+            elif triggered_id == "connect-modal":
+                # Update the past modal content as we prepare new modal view
+                modal_history.append(curr_children)
+                arduino_status = arduino.get_device_status()
+                
+                if arduino.arduino_serial:
+                    # Action Type 4-1: The "Connect" button was for "Initialization"
+                    if "Initialize Arduino" in str(curr_children):
+                        if arduino_status == b"FIRST_POWERON" or arduino_status == b"DATA_FILE_EXISTS":
+                            updated_children = [curr_children[0]] + set_modal_content(initialize=True, footer_view="Initialize")
+                            return True, updated_children, json.dumps({'is_open': True})
+                    # Action Type 4-2: The "Connect" button was for "Download"
+                    elif "Download Data" in str(curr_children):
+                        if arduino_status == b"FIRST_POWERON":
+                            updated_children = [
+                                                    curr_children[0],
+                                                    dbc.ModalBody("First time initiating the device! No data available"),
+                                                    curr_children[2]
+                                                ]
+                            return True, updated_children, json.dumps({'is_open': True})
+                        elif arduino_status == b"DATA_FILE_EXISTS":
+                            updated_children = [curr_children[0]] + set_modal_content(download=True)
+                            return True, updated_children, json.dumps({'is_open': True})
+                
+            # Action Type 5: "Initialize" button triggered from the button    
+            elif triggered_id == "initialize-btn":
+                # Update the past modal content as we prepare new modal view
+                modal_history.append(curr_children)
 
-            # Send initialization command to Arduino
-            arduino_error = arduino.initialize_arduino(epoch_time)
-            if not arduino_error:
+                # Convert selected date and time to epoch time
+                selected_datetime = datetime.datetime.strptime(date, '%Y-%m-%d')
+                selected_datetime = selected_datetime.replace(hour=int(hour), minute=int(minute))
+                
+                timezone = pytz.timezone("UTC")
+
+                selected_datetime = timezone.localize(selected_datetime)
+                epoch_time = int(selected_datetime.astimezone(pytz.utc).timestamp())
+
+                # Send initialization command to Arduino
+                arduino.initialize_arduino(epoch_time)
+                
                 formatted_dt = selected_datetime.strftime('%A, %B %d at %I:%M %p')
                 updated_children = [curr_children[0]] + set_modal_content(selected_dt=formatted_dt)
                 return True, updated_children, json.dumps({'is_open': True})
-            else:
-                updated_children = [curr_children[0]] + set_modal_content(error=arduino_status)
-                return True, updated_children, json.dumps({'is_open': True})
+            
+            elif triggered_id == "close-modal":
+                return False, dash.no_update, json.dumps({'is_open': False})
         
-        elif triggered_id == "close-modal":
-            return False, dash.no_update, json.dumps({'is_open': False})
+        except Exception as e:
+            updated_children = [curr_children[0]] + set_modal_content(error=str(e))
+            return True, updated_children, json.dumps({'is_open': True}) 
 
     return is_open, dash.no_update, json_data
 

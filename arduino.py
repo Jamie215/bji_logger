@@ -24,8 +24,9 @@ def search_for_arduino():
             if response == b"BJI_Hello There!":
                 return ser
             
-        except serial.SerialException:
-            pass
+        except serial.SerialException as e:
+            arduino_serial.close()
+            return e
     
     return None
 
@@ -46,9 +47,11 @@ def get_device_status():
             print("Received data: ", response)
             return response
         except Exception as e:
-            print(f'Error getting status: {e}')
+            # print(f'Error getting status: {e}')
+            raise serial.SerialException(f'Error getting status: {e}')
     else:
-        print("Arduino device not found.")
+        # print("Arduino device not found.")
+        raise ConnectionError("Arduino device not found.")
 
 ##############################
 ### Arduino Initialization ###
@@ -57,13 +60,20 @@ def initialize_arduino(epoch_time):
     global arduino_serial
 
     # Send initialization command to Arduino
-    if epoch_time:
-        arduino_serial.write(b'i')
-        print(arduino_serial.readline())
-        packed_data = struct.pack('<Q', epoch_time)
-        arduino_serial.write(packed_data)
+    if epoch_time and arduino_serial:
+        try:
+            arduino_serial.write(b'i')
+            print(arduino_serial.readline())
+            packed_data = struct.pack('<Q', epoch_time)
+            arduino_serial.write(packed_data)
+        except serial.SerialException as e:
+            arduino_serial.close()
+            # print(e)
+            raise e
+    else:
+        raise ValueError("Epoch time is not specified or Arduino is not connected.")
+        
     arduino_serial.close()
-
 
 #############################
 ### Arduino Download Data ###
@@ -116,4 +126,5 @@ def download_file(file_path, getReadable=False):
         print('File downloaded successfully!')
 
     except Exception as e:
-        print(f'Error downloading file: {e}')
+        # print(f'Error downloading file: {e}')
+        raise ConnectionError(f'Error downloading file: {e}')
