@@ -9,8 +9,8 @@
 }
 
 .nav-link.active {
-    font-weight: bold;
     background-color: white;
+    font-weight: bold;
     color: midnightblue !important;
 }
 
@@ -19,9 +19,9 @@ body {
 }
 
 .modal-header {
-    background-color: cornflowerblue;
     padding-top: 5px;
     padding-bottom: 5px;
+    background-color: cornflowerblue;
 }
 
 .modal-body {
@@ -35,9 +35,7 @@ body {
     display: block;
     height: 70px;
     width: 100%;
-    padding: 20px;
-    padding-top: 5px;
-    padding-bottom: 5px;
+    padding: 5px 20px 5px 20px;
 }
 
 .modal-header-text {
@@ -51,19 +49,20 @@ body {
     color: grey;
 }
 
+/* DatePicker Related */
 .DateInput {
     overflow: visible;
     min-width: 180px;
 }
 
 .DateInput_input {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    width: 160px;
     font-family: 'Roboto';
     font-size: 16px;
     font-weight: normal;
-    width: 160px;
     color: black;
-    padding-top: 4px;
-    padding-bottom: 4px;
 }
 
 .DateInput_input__focused {
@@ -91,36 +90,39 @@ body {
     color: black;
 }
 
+/* Label text for Dropdowns */
 .dropdown-label {
-    color: cornflowerblue;
-    font-weight: bold;
     display: block;
+    font-weight: bold;
+    color: cornflowerblue;
 }
 
+/* Icons for Initiation Process*/
 .initiate-success {
+    margin-top: 5px;
+    margin-bottom: 10px;
     width: 100%;
     font-size: 50px;
     text-align: center !important;
-    padding-top: 5px;
-    margin-bottom: 10px;
     color: mediumseagreen;
 }
 
 .initiate-fail {
+    margin-top: 5px;
+    margin-bottom: 10px;
     width: 100%;
     font-size: 50px;
     text-align: center !important;
-    padding-top: 5px;
-    margin-bottom: 10px;
     color: indianred; 
 }
 
+/*  Error message to display */
 .error-message {
     display: block;
-    font-weight: bold;
-    color: indianred;
-    text-align: center !important;
     margin: 10px 20px 10px 20px;
+    font-weight: bold;
+    text-align: center !important;
+    color: indianred;
 }
 
 /* Buttons from "Initialize Arduino */
@@ -131,10 +133,10 @@ body {
 
 /* Download from "Data Download" */
 .download-button {
+    display: inline-block;
+    width: 150px;
     background-color: cornflowerblue;
     color: white;
-    width: 150px;
-    display: inline-block;
 }
 
 /* Colour Theme */
@@ -153,11 +155,11 @@ body {
     height: 100px;
     padding: 10px;
     border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     font-size: 18px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     text-decoration: none;
 }
 
@@ -170,18 +172,17 @@ body {
 
 /* Upload Box Related */
 .upload-box {
-    border-width: 2px;
-    border-style: dashed;
-    border-radius: 10px;
-    text-align: center;
-    font-size: 24px;
-    border-color: steelblue;
-    color: midnightblue;
     display: flex;
-    align-items: center;
     justify-content: center;
-    padding: 20px;
     margin: 10px 20px 40px 20px !important;
+    padding: 20px;
+    border-color: steelblue;
+    border-radius: 10px;
+    border-style: dashed;
+    border-width: 2px;
+    font-size: 24px;
+    text-align: center;
+    color: midnightblue;
 }
 
 .upload-box:hover {
@@ -196,29 +197,29 @@ body {
 
 /* Total Steps Related */
 .content-totalinfo {
-    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    text-align: center;
 }
 
 .content-patientinfo {
-    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    text-align: center;
 }
 
 /* Graph Section Related */
 .graph-section {
     margin-bottom: 10px;
     padding: 10px;
+    background-color: white;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     font-family: 'Roboto';
-    background-color: white;
 }
 
 .row {
@@ -227,26 +228,27 @@ body {
 
 /* Card Related */
 .card-body {
-    font-family: 'Roboto', sans-serif !important;
+    padding: 20px;
     background-color: ghostwhite; 
     border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 20px;
+    font-family: 'Roboto', sans-serif !important;
 }
 
 .card-body li {
+    padding: 4px;
+    background-color: ghostwhite;
     font-family: 'Roboto', sans-serif !important;
     font-size: 18px;
-    background-color: ghostwhite;
     color: midnightblue;
-    padding: 4px;
 }
 
 .card-title {
-    color: ghostwhite;
     background-color: cornflowerblue;
     font-size: 20px;
     font-weight: bold;
+    color: ghostwhite;
+
 }
 
 .no-padding-row > .col, .no-padding-row > [class*="col-"] {
@@ -255,8 +257,8 @@ body {
 }
 
 .divider {
-    background-color: lightsteelblue;
     height: 100%;
-    width: 2px;
     margin: auto;
+    width: 2px;
+    background-color: lightsteelblue;
 }
