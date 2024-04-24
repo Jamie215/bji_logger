@@ -283,10 +283,12 @@ def index_layout():
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     dbc.NavbarSimple(
-            brand="CORK DATA APPLICATION",
-            color='cornflowerblue',
-            dark=True,
-            fluid=True,
+        brand="BJI IMU APPLICATION",
+        brand_href="/",
+        color='cornflowerblue',
+        dark=True,
+        fluid=True,
+        style={'cursor':'pointer'}
     ),
     dcc.Store(id='action-modal-open-state', data=json.dumps({'is_open': False})),
     html.Div(id="action-modal-status"),
