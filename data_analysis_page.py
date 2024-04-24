@@ -1,101 +1,107 @@
-# Developed by MSK-IF Jamie Kim
+"""
+Import Libraries
+"""
+import base64
+import io
+from datetime import datetime, timedelta
 
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
-import plotly.graph_objs as go
-import base64
-import io
-
 import numpy as np
 import pandas as pd
+import plotly.graph_objs as go
 import plotly.express as px
-
-from datetime import datetime, timedelta
 
 from app import app
 
 # Define the layout of the app
 layout = html.Div([
-                dbc.Container(
+    dbc.Container(
+        [
+            # Act as a global variable for the data used for plotting
+            html.Div(id='read-data', style={'display':'none'}),
+            dbc.Row(
                 [
-                    # Act as a global variable for the data used for plotting
-                    html.Div(id='read-data', style={'display':'none'}),
-                    dbc.Row([
-                        dbc.Col(
-                            dcc.Upload(
-                                id='upload-data',
-                                children= html.Div([
-                                            html.I(className='fas fa-upload'),
-                                            " Drag and Drop",
-                                            html.Br(),
-                                            "or",
-                                            html.Br(),
-                                            html.A("Select CSV File to View Data")
-                                        ],
-                                        className='upload-text'),
-                                multiple=False,
-                                className='upload-box'
+                    dbc.Col(
+                        dcc.Upload(
+                            id='upload-data',
+                            children= html.Div(
+                                [
+                                    html.I(className='fas fa-upload'),
+                                    " Drag and Drop",
+                                    html.Br(),
+                                    "or",
+                                    html.Br(),
+                                    html.A("Select CSV File to View Data")
+                                ],
+                                className='upload-text'
                             ),
-                            width=3
+                            multiple=False,
+                            className='upload-box'
                         ),
-                        dbc.Col(html.Div(className='divider'), width=1),
-                        dbc.Col(
-                            html.Div(id='content-totalinfo', className='content-totalinfo'),    
-                            width=4
-                        ),
-                        dbc.Col(html.Div(className='divider'), width=1),
-                        dbc.Col(
-                            html.Div(id='content-patientinfo', className='content-patientinfo'),
-                            width=3
-                        ),
-                        ],
-                        className="row" 
+                        width=3
                     ),
-                    dbc.Row([
-                            html.H4("Step Counts Over Time", className='color-main'),
+                    dbc.Col(html.Div(className='divider'), width=1),
+                    dbc.Col(
+                        html.Div(id='content-totalinfo', className='content-totalinfo'),
+                        width=4
+                    ),
+                    dbc.Col(html.Div(className='divider'), width=1),
+                    dbc.Col(
+                        html.Div(id='content-patientinfo', className='content-patientinfo'),
+                        width=3
+                    ),
+                ],
+                className="row"
+            ),
+            dbc.Row(
+                [
+                    html.H4("Step Counts Over Time", className='color-main'),
+                    dbc.Tabs(
+                        id="graph-tab-scatter",
+                        children=[
+                            dbc.Tab(label="Original - Every 5 Min", tab_id= "scatter-raw"),
+                            dbc.Tab(label="Hourly Aggregated", tab_id= "scatter-hourly"),
+                            dbc.Tab(label="Daily Aggregated", tab_id= "scatter-daily")
+                        ],
+                        active_tab='scatter-raw',
+                    ),
+                    html.Div(id='tab-content-scatter', className='graph-section')
+                ],
+                className="row"
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H4("Weekly Breakdown", className='color-main'),
+                            html.Div(id='content-sunburst')
+                        ],
+                        width=4
+                    ),
+                    dbc.Col(
+                        [
+                            html.H4("Step Count Distribution", className='color-main'),
                             dbc.Tabs(
-                                id="graph-tab-scatter",
+                                id="graph-tab-boxwhisker",
                                 children=[
-                                    dbc.Tab(label="Original - Every 5 Min", tab_id= "scatter-raw"),
-                                    dbc.Tab(label="Hourly Aggregated", tab_id= "scatter-hourly"),
-                                    dbc.Tab(label="Daily Aggregated", tab_id= "scatter-daily")
+                                    dbc.Tab(label="Throughout the Day (Over Hours)", tab_id="boxwhisker-hourly"),
+                                    dbc.Tab(label="Throughout the Week (Over Days)", tab_id="boxwhisker-daily")
                                 ],
-                                active_tab='scatter-raw',
+                                active_tab='boxwhisker-hourly',
                             ),
-                            html.Div(id='tab-content-scatter', className='graph-section')
+                            html.Div(id='tab-content-boxwhisker', className='graph-section')
                         ],
-                        className="row"
-                    ),
-                    dbc.Row([
-                            dbc.Col([
-                                html.H4("Weekly Breakdown", className='color-main'),
-                                html.Div(id='content-sunburst')
-                                ],
-                                width=4
-                            ),
-                            dbc.Col([
-                                html.H4("Step Count Distribution", className='color-main'),
-                                dbc.Tabs(
-                                    id="graph-tab-boxwhisker",
-                                    children=[
-                                        dbc.Tab(label="Throughout the Day (Over Hours)", tab_id="boxwhisker-hourly"),
-                                        dbc.Tab(label="Throughout the Week (Over Days)", tab_id="boxwhisker-daily")
-                                    ],
-                                    active_tab='boxwhisker-hourly',
-                                ),
-                                html.Div(id='tab-content-boxwhisker', className='graph-section')
-                                ],
-                                width=8
-                            )           
-                        ], 
-                        className='row'
+                        width=8
                     )
                 ],
-                fluid=True,
-                style={'padding': '40px'}
-            )                        
+                className='row'
+            )
+        ],
+        fluid=True,
+        style={'padding': '40px'}
+    )
 ])
-
 
 # Create/Read the data for entire dashboard
 @app.callback(
@@ -104,9 +110,17 @@ layout = html.Div([
         [State('upload-data', 'filename')]
 )
 def read_data(contents, filename):
+    """
+    Read the CSV file that was generated from the application
+
+    contents: data within
+    filename: name of the csv file
+    """
     if contents is None:
         # Create dummy data (For demo purposes)
-        df = pd.DataFrame({'timestamp': np.arange(datetime(2024,2,1,0,0,0), datetime(2024,5,30,23,59,0), timedelta(minutes=5))})
+        df = pd.DataFrame(
+            {'timestamp': np.arange(datetime(2024,2,1,0,0,0), datetime(2024,5,30,23,59,0), timedelta(minutes=5))}
+        )
         x = np.arange(0,df.size)
         def f(x):
             tmp = np.sin(0.01*x) + np.random.normal(size=len(x))*25
@@ -118,9 +132,9 @@ def read_data(contents, filename):
         decoded = base64.b64decode(content_string)
         if 'csv' in filename:
             df=pd.read_csv(io.StringIO(decoded.decode('utf-8')), names=['timestamp','steps'])
-        else: 
+        else:
             return None
-        
+
         df['timestamp'] = pd.to_datetime(df['timestamp'])
 
     return df.to_json(date_format='iso', orient='split')
@@ -183,6 +197,12 @@ def update_total_info(json_data):
          Input('read-data', 'children')]
 )
 def update_patient_info(filename, json_data):
+    """
+    Display the patient participant information as indicated on the filename
+
+    filename: name of the provided csv file
+    json_data: extracted data from the csv file
+    """
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient='split')
@@ -194,6 +214,7 @@ def update_patient_info(filename, json_data):
             html.Br(),
             html.H5("The graphs are currently randomly generated", className='color-sub')
         ]
+    # Extract from filename
     else:
         if filename:
             # TODO: Confirm filename style (i.e., IMUData_Readable_UID_DeviceType)
@@ -204,10 +225,12 @@ def update_patient_info(filename, json_data):
             return [
                 html.H4("Basic Information", className='color-main'),
                 html.Br(),
-                html.H5("UID: {0}".format(patient_id), className='color-sub'),
+                html.H5(f"UID: {patient_id}", className='color-sub'),
                 html.Br(),
-                html.H5("Device Type: {0}".format(device_type), className='color-sub')
+                html.H5(f"Device Type: {device_type}", className='color-sub')
             ]
+
+        return [html.H4("Basic Information Unavailable")]
 
 # Visualize full data
 @app.callback(
@@ -216,6 +239,12 @@ def update_patient_info(filename, json_data):
          Input('read-data', 'children')]
 )
 def update_scatter(selected_value, json_data):
+    """
+    Display a scatter plot based on the json_data
+
+    selected_value = selected timeframe
+    json_data = data extracted from the csv file
+    """
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient='split')
@@ -228,10 +257,8 @@ def update_scatter(selected_value, json_data):
         # Plot the hourly aggregated data
         plot = go.Figure()
         plot.add_trace(go.Scatter(x=df_new['timestamp'], y = df_new['steps'], mode='lines+markers'))
-        plot.update_layout(xaxis_title="Date",
-                            yaxis_title="Steps",
-                            xaxis_tickangle=45)
-        
+        plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
+
         # Calculate basic information
         max_index = df_new[['steps']].idxmax().steps
         max_val = df_new['steps'].iloc[max_index]
@@ -246,9 +273,7 @@ def update_scatter(selected_value, json_data):
         # Plot the daily aggregated data
         plot = go.Figure()
         plot.add_trace(go.Scatter(x=df_new['timestamp'], y = df_new['steps'], mode='lines+markers'))
-        plot.update_layout(xaxis_title="Date",
-                            yaxis_title="Steps",
-                            xaxis_tickangle=45)
+        plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
         # For Histogram
         # plot = px.histogram(df_day, x='timestamp', y='steps', nbins=df_day.shape[0])
         # plot.update_layout(xaxis_title="Date",
@@ -268,49 +293,53 @@ def update_scatter(selected_value, json_data):
 
         plot = go.Figure()
         plot.add_trace(go.Scatter(x=df_new['timestamp'], y=df_new['steps'], mode='lines+markers'))
-        plot.update_layout(xaxis_title="Date",
-                            yaxis_title="Steps",
-                            xaxis_tickangle=45)
-        
+        plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
+
         # Calculate basic information
         max_index = df_new[['steps']].idxmax().steps
         max_val = df_new['steps'].iloc[max_index]
         max_timestamp = df_new['timestamp'].iloc[max_index].strftime('%b. %d, %I:%M %p')
         mean_val = round(df_new['steps'].mean(), 2)
-            
-    plot.update_layout(xaxis=dict(range=[df_new['timestamp'].min(), df_new['timestamp'].max()]),
-                        margin=dict(l=20, r=20, t=20, b=20),
-                        paper_bgcolor='white',
-                        hoverlabel=dict(
-                                    bgcolor='white',
-                                    font_size=16,
-                                    font_family='Roboto'))
-    plot.update_traces(marker_color='mediumaquamarine',
-                       line_color='lightseagreen')
 
-    return dbc.Row([
-                dbc.Col(dcc.Graph(figure=plot), width=12),
-                dbc.Col(
-                        dbc.Card([
-                            dbc.CardHeader("Graph Information", className='card-title'),
-                            dbc.CardBody([
-                                html.Ul([
-                                    html.Li(["A maximum of ",
-                                                html.Strong(str(max_val)),
-                                                f" steps were taken at {max_timestamp}."
-                                            ]),
-                                    html.Li(["A mean of ", 
-                                                html.Strong(str(mean_val)),
-                                                f" steps were taken every {unit_of_time} throughout this period."
-                                            ])
-                                ])   
-                            ],
-                            className='card-body')
-                        ]),
-                    width=12)
-            ],
-            className='flex-container'
-    ) 
+    plot.update_layout(
+        xaxis={'range':[df_new['timestamp'].min(), df_new['timestamp'].max()]},
+        margin={'l':20, 'r':20, 't':20, 'b':20},
+        paper_bgcolor='white',
+        hoverlabel={'bgcolor':'white',
+                    'font_size':16,
+                    'font_family':'Roboto'}
+    )
+    plot.update_traces(marker_color='mediumaquamarine', line_color='lightseagreen')
+
+    return dbc.Row(
+        [
+            dbc.Col(dcc.Graph(figure=plot), width=12),
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardHeader("Graph Information", className='card-title'),
+                    dbc.CardBody(
+                        [
+                            html.Ul([
+                                html.Li([
+                                    "A maximum of ",
+                                    html.Strong(str(max_val)),
+                                    f" steps were taken at {max_timestamp}."
+                                ]),
+                                html.Li([
+                                    "A mean of ",
+                                    html.Strong(str(mean_val)),
+                                    f" steps were taken every {unit_of_time} throughout this period."
+                                ])
+                            ])
+                        ],
+                        className='card-body'
+                    )
+                ]),
+                width=12
+            )
+        ],
+        className='flex-container'
+    )
 
 # Visualize the aggregated data with sunburst graph
 @app.callback(
@@ -318,34 +347,37 @@ def update_scatter(selected_value, json_data):
         [Input('read-data', 'children')]
 )
 def update_sunburst(json_data):
+    """
+    Display a sunburst chart based on the json_data
+
+    json_data: data extracted from the csv file
+    """
     if json_data is None: return None
-    
+
     df = pd.read_json(io.StringIO(json_data), orient='split')
     df_new = aggregate_data(df, 'month')
     df_sunburst = df_new.groupby(['month', 'day_of_week']).agg({'steps':'sum'}).reset_index()
     num_months = len(df_sunburst.month.unique())
 
     fig = px.sunburst(
-                    df_sunburst,
-                    path=['month', 'day_of_week'],
-                    values='steps',
-                    color='month',
-                    color_discrete_sequence=px.colors.sequential.GnBu[5:5+num_months],
-                    custom_data=['month', 'day_of_week', 'steps']
-            )
+        df_sunburst,
+        path=['month', 'day_of_week'],
+        values='steps',
+        color='month',
+        color_discrete_sequence=px.colors.sequential.GnBu[5:5+num_months],
+        custom_data=['month', 'day_of_week', 'steps']
+    )
     fig.update_traces(
-        insidetextfont=dict(color='white'),
+        insidetextfont={'color':'white'},
         hovertemplate="<b>%{customdata[0]}</b> - %{customdata[1]}<br>" +
                   "%{customdata[2]} Steps<br>"
     )
     fig.update_layout(
         paper_bgcolor='ghostwhite',
         plot_bgcolor='ghostwhite',
-        margin=dict(l=10, r=10, t=20, b=10),
-        uniformtext=dict(minsize=18, mode='hide'),
-        hoverlabel=dict(bgcolor='white',
-                        font_size=16,
-                        font_family='Roboto')
+        margin={'l':10, 'r':10, 't':20, 'b':10},
+        uniformtext={'minsize':18, 'mode':'hide'},
+        hoverlabel={'bgcolor':'white', 'font_size':16, 'font_family':'Roboto'}
     )
 
     return dcc.Graph(figure=fig)
@@ -357,8 +389,14 @@ def update_sunburst(json_data):
          Input('read-data', 'children')]
 )
 def update_boxwhisker(selected_value, json_data):
+    """
+    Display a box & whisker chart based on the json_data
+
+    selected_value: selected timeframe to view
+    json_data: data extracted from the csv file
+    """
     if json_data is None: return None
-    
+
     df = pd.read_json(io.StringIO(json_data), orient='split')
     traces = []
 
@@ -367,68 +405,70 @@ def update_boxwhisker(selected_value, json_data):
         df_new = aggregate_data(df, 'hour')
         num_categories = df_new['hour'].nunique()
         color_scale = px.colors.sequential.Agsunset # or Cividis
-        colors = {hour: color_scale[int(np.floor(idx / num_categories * (len(color_scale) - 1)))]
-                    for idx, hour in enumerate(sorted(df_new['hour'].unique()))}
-        hour_labels = ['12AM', '1AM', '2AM', '3AM', '4AM', '5AM', '6AM', '7AM', '8AM', '9AM', '10AM', '11AM',
-                       '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM', '11PM']
+        colors = {
+            hour: color_scale[int(np.floor(idx / num_categories * (len(color_scale) - 1)))]
+                for idx, hour in enumerate(sorted(df_new['hour'].unique()))
+        }
+        hour_labels = [
+            '12AM', '1AM', '2AM', '3AM', '4AM', '5AM', '6AM', '7AM', '8AM', '9AM', '10AM', '11AM',
+            '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM', '11PM'
+        ]
 
         for hr in sorted(df_new['hour'].unique()):
             # Plot the box & whisker plot of hourly aggregated data
-            trace = go.Box(y=df_new[df_new['hour']==hr]['steps'].values,
-                           name=hour_labels[hr],
-                           boxpoints="outliers",
-                           marker_color=colors[hr],
-                           marker={'outliercolor':'rgba(219, 64, 82, 0.6)',
-                                   'line':{'outliercolor':'rgba(219, 64, 82, 0.6)',
-                                           'outlierwidth':2}
-                    })
+            trace = go.Box(
+                y=df_new[df_new['hour']==hr]['steps'].values,
+                name=hour_labels[hr],
+                boxpoints="outliers",
+                marker_color=colors[hr],
+                marker={'outliercolor':'rgba(219, 64, 82, 0.6)',
+                        'line':{'outliercolor':'rgba(219, 64, 82, 0.6)',
+                                'outlierwidth':2}
+                }
+            )
             traces.append(trace)
-        
+
         plot = go.Figure(traces)
-        plot.update_layout(xaxis_title="Hour of the Day",
-                            yaxis_title="Steps",
-                            showlegend=False)
+        plot.update_layout(xaxis_title="Hour of the Day", yaxis_title="Steps", showlegend=False)
     else:
         # Aggregate data by day
         df_new = aggregate_data(df, 'day')
         num_categories = df_new['day_of_week'].nunique()
-        color_scale = px.colors.sequential.Agsunset # or Cividis
+        color_scale = px.colors.sequential.Agsunset
         colors = {day: color_scale[int(np.floor(idx / num_categories * (len(color_scale) - 1)))]
                     for idx, day in enumerate(sorted(df_new['day_of_week'].unique()))}
         day_labels = ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun']
 
         for day in sorted(df_new['day_of_week'].unique()):
             # Plot the box & whisker plot of daily aggregated data
-            trace = go.Box(y=df_new[df_new['day_of_week']==day]['steps'].values,
-                           name=day_labels[day],
-                           boxpoints="outliers",
-                           marker_color=colors[day],
-                           marker={'outliercolor':'rgba(219, 64, 82, 0.6)',
-                                   'line':{'outliercolor':'rgba(219, 64, 82, 0.6)',
-                                           'outlierwidth':2}
-                    })
+            trace = go.Box(
+                y=df_new[df_new['day_of_week']==day]['steps'].values,
+                name=day_labels[day],
+                boxpoints="outliers",
+                marker_color=colors[day],
+                marker={'outliercolor':'rgba(219, 64, 82, 0.6)',
+                        'line':{'outliercolor':'rgba(219, 64, 82, 0.6)',
+                                'outlierwidth':2}
+                }
+            )
             traces.append(trace)
 
         plot = go.Figure(traces)
-        plot.update_layout(xaxis_title="Day of the Week",
-                            yaxis_title="Steps", 
-                            showlegend=False)
+        plot.update_layout(xaxis_title="Day of the Week", yaxis_title="Steps", showlegend=False)
 
-    plot.update_layout(margin=dict(l=20, r=20, t=20, b=20),
-                    paper_bgcolor='white',
-                    hoverlabel=dict(
-                                bgcolor='white',
-                                font_size=16,
-                                font_family='Roboto'))
-    
+    plot.update_layout(
+        margin={'l':20, 'r':20, 't':20, 'b':20},
+        paper_bgcolor='white',
+        hoverlabel={'bgcolor':'white', 'font_size':16, 'font_family':'Roboto'}
+    )
+
     return dbc.Row(
-                dbc.Col(
-                    dcc.Loading(
-                        id='loading-1',
-                        type='default',
-                        children=[dcc.Graph(figure=plot, id='plot')]
-                    )
-                ), 
-                className='flex-container'
-    ) 
-
+        dbc.Col(
+            dcc.Loading(
+                id='loading-1',
+                type='default',
+                children=[dcc.Graph(figure=plot, id='plot')]
+            )
+        ),
+        className='flex-container'
+    )
