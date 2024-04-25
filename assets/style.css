@@ -125,15 +125,6 @@ body {
     color: indianred; 
 }
 
-/*  Error message to display */
-.error-msg {
-    display: block;
-    margin: 10px 20px 10px 20px;
-    font-weight: bold;
-    text-align: center !important;
-    color: indianred;
-}
-
 /* Buttons from "Initialize Arduino */
 .initialize-btn {
     background-color: cornflowerblue;
@@ -174,6 +165,11 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     color: steelblue;
     text-decoration: none;
+}
+
+.page-btn:hover {
+    background-color: cornflowerblue;
+    color: white;
 }
 
 /* Flex Container */

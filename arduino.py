@@ -20,7 +20,7 @@ def search_for_arduino():
             # print(port)
             ser = serial.Serial(port, 115200, timeout=1)
             time.sleep(2)
-            ser.write(b'?')
+            ser.write(b"?")
             response = ser.readline().strip()
 
             if response == b"BJI_Hello There!":
@@ -28,7 +28,7 @@ def search_for_arduino():
 
         except serial.SerialException as e:
             arduino_serial.close()
-            return e
+            raise serial.SerialException("")
 
     return None
 
@@ -44,21 +44,20 @@ def disconnect_arduino():
 
 def get_device_status():
     """
-    Fetch Arduino's status while connecting
+    Fetch Arduino"s status while connecting
     """
     global arduino_serial
     arduino_serial = search_for_arduino()
     if arduino_serial is not None:
         try:
-            arduino_serial.write(b'!')
+            arduino_serial.write(b"!")
             response = arduino_serial.readline().strip()
             print("Received data: ", response)
             return response
         except Exception as e:
-            # print(f'Error getting status: {e}')
-            raise serial.SerialException(f'Error getting status: {e}')
+            print(f"Error getting status: {e}")
+            raise serial.SerialException()
     else:
-        # print("Arduino device not found.")
         raise ConnectionError("Arduino device not found.")
 
 def initialize_arduino(epoch_time):
@@ -72,16 +71,16 @@ def initialize_arduino(epoch_time):
     # Send initialization command to Arduino
     if epoch_time and arduino_serial:
         try:
-            arduino_serial.write(b'i')
+            arduino_serial.write(b"i")
             print(arduino_serial.readline())
-            packed_data = struct.pack('<Q', epoch_time)
+            packed_data = struct.pack("<Q", epoch_time)
             arduino_serial.write(packed_data)
         except serial.SerialException as e:
             arduino_serial.close()
-            # print(e)
-            raise e
+            print(e)
+            raise serial.SerialException()
     else:
-        raise ValueError("Epoch time is not specified or Arduino is not connected.")
+        raise ValueError("Time was not specified or Arduino is not connected.")
 
     arduino_serial.close()
 
@@ -94,13 +93,13 @@ def download_file(file_path, get_readable=False):
     """
     global arduino_serial
     try:
-        with open(file_path, 'wb') as file:
-            # Send 'r' to the Arduino to initiate readable file transfer, or 't' for binary.
+        with open(file_path, "wb") as file:
+            # Send "r" to the Arduino to initiate readable file transfer, or "t" for binary.
             if get_readable == True:
-                arduino_serial.write(b'r')
+                arduino_serial.write(b"r")
             else:
-                arduino_serial.write(b't')
-            end_data_marker = b'BJI_END_DATA'
+                arduino_serial.write(b"t")
+            end_data_marker = b"BJI_END_DATA"
             marker_position = 0  # Tracks the position within the end data marker
 
             # Wait for data to become available
@@ -135,8 +134,8 @@ def download_file(file_path, get_readable=False):
                         break
 
         file.close()
-        print('File downloaded successfully!')
+        print("File downloaded successfully!")
 
     except Exception as e:
-        # print(f'Error downloading file: {e}')
-        raise ConnectionError(f'Error downloading file: {e}')
+        print(f"Error downloading file: {e}")
+        raise ConnectionError()
