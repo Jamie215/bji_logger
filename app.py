@@ -1,8 +1,16 @@
 """
 Import Libraries
 """
+import atexit
+
+from flask import request
+import os
+import signal
+
 from dash import Dash
 import dash_bootstrap_components as dbc
+
+import arduino
 
 # Use external style sheets
 external_stylesheets = [
@@ -12,6 +20,26 @@ external_stylesheets = [
     "/assets/style.css"
 ]
 
-# Initialize the Dash app
+# Initialize the app
 app = Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
 server = app.server
+
+@server.route("/shutdown", methods=["POST"])
+def shutdown():
+    """
+    Shut down the process when the user exists from the browser
+    """
+    print("Server shutting down...")
+    os.kill(os.getpid(), signal.SIGINT)
+    return "Server shutting down..."
+
+def clean_up():
+    """
+    Clean up existing resources
+    """
+    print("Cleaning up")
+    if hasattr(arduino, "arduino_serial"):
+        arduino.disconnect_arduino()
+        print("Arduino serial connection closed")
+
+atexit.register(clean_up)

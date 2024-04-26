@@ -480,7 +480,6 @@ def manage_arduino_connection(json_data):
     json_data: json wrapping "is_open"
     """
     data = json.loads(json_data)
-    print(f"under manage_arduino_connection:{data}")
 
     if data and not data["is_open"]:
         arduino.disconnect_arduino()
