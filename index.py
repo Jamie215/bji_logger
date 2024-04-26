@@ -46,7 +46,10 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
                     " and powered down. It will be counting steps in the next powerup.",
                     html.Br(),
                     html.Br(),
-                    " You may now disconnect the device."
+                    " You may now disconnect the device.",
+                    " If you want to continue initializing the device,",
+                    " check the connection of the device and",
+                    " restart the initializing process."
                 ])
             ),
             html.Div(
@@ -59,31 +62,29 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
         ]
     elif download:
         status_msg = [
-            html.Div("Select from below for downloading appropriate format.", className="mb-2"),
+            html.Div("Select from below to download the appropriate format.", className="mb-2"),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
     elif error:
         status_msg = [
-            dbc.Row(html.I(className="fas fa-times-circle initiate-fail")),
+            html.I(className="fas fa-times-circle initiate-fail"),
             dbc.Row(
                 html.Div([
                         "The initialization has failed due to an error. ",
                         html.Br(),
                         html.Br(),
                         " If you want to continue initializing the device,",
-                        " check the connection of the device and"
+                        " check the connection of the device and",
                         " restart the initializing process."
                 ])
             ),
-            dbc.Row(
-                dbc.Col(
-                    [
-                        dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn"),
-                        dbc.Button("Close", id="close-modal", outline=True, color="secondary", style={"margin-left": "10px"}),
-                    ],
-                    style={"text-align":"center"},
-                    width=12
-                )
+            dbc.Col(
+                [
+                    dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn"),
+                    dbc.Button("Close", id="close-modal", outline=True, color="secondary", style={"margin-left": "10px"}),
+                ],
+                style={"text-align":"center"},
+                width=12
             )
         ]
     else:
@@ -154,13 +155,13 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
         html.Div(
             [
                 dbc.Button(
-                        "Download .RAW Data",
+                        [html.I(className="fas fa-file-download mr-2"), " Download .RAW Data"],
                         id="download-raw",
                         className="ms-2 download-btn",
                         style={"display": "none"} if not download else {}
                 ),
                 dbc.Button(
-                        "Download .CSV Data",
+                        [html.I(className="fas fa-file-csv mr-2"), " Download .CSV Data"],
                         id="download-read",
                         className="ms-2 download-btn",
                         style={"display": "none"} if not download else {}
@@ -229,7 +230,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
                     [
                         dbc.Button("Previous", id="previous-modal", outline=True, color="secondary", style={"padding":"10px", "margin-left":"15px", "margin-right":"10px"}),
                         dbc.Button("Connect", id="connect-modal", style={"display":"none"}),
-                        dbc.Button("Initialize", id="initialize-btn", className="initialize-btn", style={"padding":"10px"}),
+                        dbc.Button("Initialize", id="initialize-btn", color="success", style={"padding":"10px", 'color': 'White'}),
                         dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
                     ],
                     width=6,
@@ -251,22 +252,31 @@ def index_layout():
     return html.Div(
         [
             dbc.Button(
-                "Initialize Device",
+                [
+                    html.I(className="fas fa-microchip page-btn-icon"),
+                    "Initialize Device",
+                ],
                 id="open-initialize-modal",
                 outline=True,
-                className="m-2 page-btn",
+                className="m-4 page-btn",
             ),
             dbc.Button(
-                "Data Download",
+                [
+                    html.I(className="fas fa-download page-btn-icon"),
+                    "Data Download"
+                ],
                 id="open-download-modal",
                 outline=True,
-                className="m-2 page-btn",
+                className="m-4 page-btn",
             ),
             dbc.Button(
-                "Data Analysis",
+                [
+                    html.I(className="fas fa-chart-bar page-btn-icon"),
+                    "Data Analysis"
+                ],
                 href="/data-analysis",
                 outline=True,
-                className="m-2 page-btn",
+                className="m-4 page-btn",
             ),
             dbc.Modal(
                 [dbc.ModalHeader("Action")] + set_modal_content(),
