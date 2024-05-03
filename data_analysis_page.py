@@ -39,21 +39,16 @@ layout = html.Div([
                             multiple=False,
                             className="upload-box"
                         ),
-                        width=3
+                        width=8
                     ),
-                    dbc.Col(html.Div(className="divider"), width=1),
-                    dbc.Col(
-                        html.Div(id="content-totalinfo", className="content-totalinfo"),
-                        width=4
-                    ),
-                    dbc.Col(html.Div(className="divider"), width=1),
                     dbc.Col(
                         html.Div(id="content-patientinfo", className="content-patientinfo"),
-                        width=3
-                    ),
+                        width=4
+                    )
                 ],
                 className="row"
             ),
+            dbc.Row(id="content-totalinfo", className="row content-totalinfo"),
             dbc.Row(
                 [
                     html.H4("Step Counts Over Time", className="color-main"),
@@ -190,14 +185,115 @@ def update_total_info(json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
+                            " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
+    total_steps = df["steps"].sum()
+    total_min = round((df["timestamp"].iloc[-1]-df["timestamp"].iloc[0]).total_seconds() / 60, 2)
+
+    unit_active_steps = 1
+    active_step = df[df["steps"] >= unit_active_steps]["steps"].sum()
+    inactive_step = df[df["steps"] < unit_active_steps]["steps"].sum()
+    active_min = len(df[df["steps"] >= unit_active_steps]) * 5
+    inactive_min = len(df[df["steps"] < unit_active_steps]) * 5
+
+    fig_active_steps = go.Figure(go.Pie(
+        labels=["Active Steps", "Inactive Steps"],
+        values=[active_step, inactive_step],
+        hole=0.7,
+        hoverinfo="label+percent+value",
+        textinfo="none"
+    ))
+
+    fig_active_steps.update_layout(
+        annotations=[
+            dict(
+                text=f"Active Steps:<br>{active_step}",
+                x=0.5,
+                y=0.5,
+                font_size=18,
+                showarrow=False,
+                align='center'
+            )
+        ],
+        autosize=True,
+        paper_bgcolor="ghostwhite",
+        plot_bgcolor="ghostwhite",
+        margin={"l":20, "r":20, "t":10, "b":10},
+        uniformtext={"minsize":16, "mode":"hide"},
+        showlegend=False,
+        hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"},
+    )
+
+    fig_active_mins = go.Figure(go.Pie(
+            labels=["Active Mins", "Inactive Mins"],
+            values=[active_min, inactive_min],
+            hole=0.7,
+            hoverinfo="label+percent+value",
+            textinfo="none"
+        ))
+
+    fig_active_mins.update_layout(
+        annotations=[
+            dict(
+                text=f"<b>Active Minutes:<b><br>{active_step}",
+                x=0.5,
+                y=0.5,
+                font_size=18,
+                showarrow=False,
+                align='center'
+            )
+        ],
+        autosize=True,
+        paper_bgcolor="ghostwhite",
+        plot_bgcolor="ghostwhite",
+        margin={"l":20, "r":20, "t":10, "b":10},
+        uniformtext={"minsize":16, "mode":"hide"},
+        showlegend=False,
+        hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"},
+    )
 
     return [
-        html.H4("Total Steps", style={"text-align":"center"}, className="color-main"),
-        html.H1(df["steps"].sum(), className="color-sub"),
-        html.Br(),
-        html.H4("Collected Period", style={"text-align":"center"}, className="color-main"),
-        html.H5(str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
-                " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")), className="color-sub")
+        dbc.Row(
+            [
+                html.H4("Collected Period", className="color-main", style={"text-align":"left"}),
+                html.H5(collected_period, className="color-sub", style={"text-align":"left"}),
+            ],
+            style={"text-align":"left",}
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H4("Total Steps", className="color-main", style={"text-align":"left"}),
+                        html.H1(total_steps, className="color-sub", style={"text-align":"left"}),
+                        html.Br(),
+                        html.Br(),
+                        html.H4("Total Minutes Recorded", className="color-main", style={"text-align":"left"}),
+                        html.H1(total_min, className="color-sub", style={"text-align":"left"})
+                    ],
+                    className="white-background",
+                    style={"text-align":"left"},
+                    width=3
+                ),
+                dbc.Col(
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                dcc.Graph(figure=fig_active_steps),
+                                width=4
+                            ),
+                            dbc.Col(html.Div(className="divider"), width=1),
+                            dbc.Col(
+                                dcc.Graph(figure=fig_active_mins),
+                                width=4
+                            )
+                        ],
+                        className="row white-background"),
+                    width=9
+                )
+            ],
+            className="row"
+        )
     ]
 
 # Display data information used in graphs
