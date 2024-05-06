@@ -48,6 +48,45 @@ layout = html.Div([
                 ],
                 className="row"
             ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            html.H4("Collected Period", className="color-main"),
+                            html.Div(id="content-collected-period")
+                        ],
+                        width=4,
+                        style={"text-align":"left"}
+                    ),
+                    dbc.Col(
+                        [
+                            html.Br(),
+                            html.H6("Set Active Steps:", className="color-sub"),
+                            dcc.Slider(1, 100,
+                                step=None,
+                                marks={
+                                    1: "1",
+                                    10: "10",
+                                    20: "20",
+                                    30: "30",
+                                    40: "40",
+                                    50: "50",
+                                    60: "60",
+                                    70: "70",
+                                    80: "80",
+                                    90: "90",
+                                    100: "100"
+                                },
+                                value=1,
+                                id="active-step-slider"
+                            )
+                        ],
+                        width=8,
+                        style={"margin-top":"10px",}
+                    )
+                ],
+                style={"margin": "10px 0 30px 0"}
+            ),
             dbc.Row(id="content-totalinfo", className="row content-totalinfo"),
             dbc.Row(
                 [
@@ -213,12 +252,33 @@ def update_patient_info(filename, json_data):
 
         return [html.H4("Basic Information Unavailable")]
 
+# Display collected period of the data
+@app.callback(
+        Output("content-collected-period", "children"),
+        [Input("read-data", "children")]
+)
+def update_collected_period(json_data):
+    """
+    Display collected period of the displaying data
+
+    json_data: json wrapped Arduino data
+    """
+    if json_data is None: return None
+
+    df = pd.read_json(io.StringIO(json_data), orient="split")
+    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
+                    " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
+
+    return html.H5(collected_period, className="color-sub", 
+                   style={"text-align":"left"})
+
 # Display total steps in the used data
 @app.callback(
         Output("content-totalinfo", "children"),
-        [Input("read-data", "children")]
+        [Input("read-data", "children"),
+         Input("active-step-slider", "value")]
 )
-def update_total_info(json_data):
+def update_total_info(json_data, active_steps_defn):
     """
     Display high-level information related to the displaying data
 
@@ -227,12 +287,11 @@ def update_total_info(json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
-    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
-                            " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
-    total_steps = df["steps"].sum()
-    total_min = round((df["timestamp"].iloc[-1]-df["timestamp"].iloc[0]).total_seconds() / 60, 2)
 
-    unit_active_steps = 1
+    total_steps = df["steps"].sum()
+    total_min = round((df["timestamp"].iloc[-1]-df["timestamp"].iloc[0]).total_seconds() / 60)
+
+    unit_active_steps = active_steps_defn
     active_step = df[df["steps"] >= unit_active_steps]["steps"].sum()
     inactive_step = df[df["steps"] < unit_active_steps]["steps"].sum()
     active_min = len(df[df["steps"] >= unit_active_steps]) * 5
@@ -294,58 +353,60 @@ def update_total_info(json_data):
         hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"},
     )
 
-    return [
-        dbc.Row(
-            [
-                html.H4("Collected Period", className="color-main", style={"text-align":"left"}),
-                html.H5(collected_period, className="color-sub", style={"text-align":"left"}),
-            ],
-            style={"text-align":"left",}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        html.H4("Total Steps", className="color-main", style={"text-align":"left"}),
-                        html.H1(total_steps, className="color-sub", style={"text-align":"left"}),
-                        html.Br(),
-                        html.Br(),
-                        html.H4("Total Minutes Recorded", className="color-main", style={"text-align":"left"}),
-                        html.H1(total_min, className="color-sub", style={"text-align":"left"})
-                    ],
-                    className="white-background",
-                    style={"text-align":"left"},
-                    width=3
-                ),
-                dbc.Col(
-                    dbc.Row(
+    return dbc.Row(
+        [
+            dbc.Col(
+                [
+                    html.H4("Total Steps", className="color-main"),
+                    html.Div(
                         [
-                            dbc.Col(
-                                [
-                                    html.H4("Active Steps", className="color-main", style={"text-align":"left"}),
-                                    dcc.Graph(figure=fig_active_steps)
-                                ],
-                                width=5
-                            ),
-                            dbc.Col(html.Div(className="divider"), width=2),
-                            dbc.Col(
-                                [
-                                    html.H4("Active Minutes", className="color-main", style={"text-align":"left"}),
-                                    dcc.Graph(figure=fig_active_mins)
-                                ],
-                                width=5
-                            )
+                            html.Span(total_steps, style={"font-weight":"bold", "font-size":"40px"}),
+                            html.Span(" Steps", style={"margin-left": "5px", "font-size":"18px"})
                         ],
-                        className="row flex-container white-background",
-                        style={"margin":"20px", "align-items": "center", "justify-content": "space-evenly"}
+                        className="color-sub",
+                        style={"margin-bottom":"30px"}
                     ),
-                    width=9,
-                )
-            ],
-            className="row flex-container",
-            style={"align-items": "flex-start"}
-        )
-    ]
+                    html.H4("Total Minutes Recorded", className="color-main"),
+                    html.Div(
+                        [
+                            html.Span(total_min, style={"font-weight":"bold", "font-size":"40px"}),
+                            html.Span(" Min.", style={"margin-left": "5px", "font-size":"18px"})
+                        ],
+                        className="color-sub",
+                    ),
+                ],
+                className="white-background",
+                style={"text-align":"left"},
+                width=3
+            ),
+            dbc.Col(
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            [
+                                html.H4("Active Steps", className="color-main", style={"text-align":"left"}),
+                                dcc.Graph(figure=fig_active_steps)
+                            ],
+                            width=5
+                        ),
+                        dbc.Col(html.Div(className="divider"), width=2),
+                        dbc.Col(
+                            [
+                                html.H4("Active Minutes", className="color-main", style={"text-align":"left"}),
+                                dcc.Graph(figure=fig_active_mins)
+                            ],
+                            width=5
+                        )
+                    ],
+                    className="row flex-container white-background",
+                    style={"margin":"20px", "align-items": "center", "justify-content": "space-evenly"}
+                ),
+                width=9,
+            )
+        ],
+        className="row flex-container",
+        style={"align-items": "flex-start"}
+    )
 
 # Visualize full data
 @app.callback(
