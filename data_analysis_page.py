@@ -171,6 +171,48 @@ def aggregate_data(df, unit):
             
     return df_new
 
+# Display data information used in graphs
+@app.callback(
+        Output("content-patientinfo", "children"),
+        [Input("upload-data", "filename"),
+         Input("read-data", "children")]
+)
+def update_patient_info(filename, json_data):
+    """
+    Display the patient participant information as indicated on the filename
+
+    filename: name of the provided csv file
+    json_data: json wrapped Arduino data
+    """
+    if json_data is None: return None
+
+    df = pd.read_json(io.StringIO(json_data), orient="split")
+
+    # Dummy data doesn"t need filename parsing
+    if df["timestamp"].iloc[0] == datetime(2024,2,1,0,0,0):
+        return [
+            html.H4("Basic Information", className="color-main"),
+            html.Br(),
+            html.H5("The graphs are currently randomly generated", className="color-sub")
+        ]
+    # Extract from filename
+    else:
+        if filename:
+            # TODO: Confirm filename style (i.e., IMUData_Readable_UID_DeviceType)
+            parts = filename.split("_")
+            patient_id = parts[2]
+            device_type = parts[3].split(".")[0]
+
+            return [
+                html.H4("Basic Information", className="color-main"),
+                html.Br(),
+                html.H5(f"UID: {patient_id}", className="color-sub"),
+                html.Br(),
+                html.H5(f"Device Type: {device_type}", className="color-sub")
+            ]
+
+        return [html.H4("Basic Information Unavailable")]
+
 # Display total steps in the used data
 @app.callback(
         Output("content-totalinfo", "children"),
@@ -207,7 +249,7 @@ def update_total_info(json_data):
     fig_active_steps.update_layout(
         annotations=[
             dict(
-                text=f"Active Steps:<br>{active_step}",
+                text=f"<b><span style='font-size:40px'>{active_step}</span></b><br><br>Steps",
                 x=0.5,
                 y=0.5,
                 font_size=18,
@@ -235,7 +277,7 @@ def update_total_info(json_data):
     fig_active_mins.update_layout(
         annotations=[
             dict(
-                text=f"<b>Active Minutes:<b><br>{active_step}",
+                text=f"<b><span style='font-size:40px'>{active_min}</span></b><br><br>Min",
                 x=0.5,
                 y=0.5,
                 font_size=18,
@@ -279,64 +321,31 @@ def update_total_info(json_data):
                     dbc.Row(
                         [
                             dbc.Col(
-                                dcc.Graph(figure=fig_active_steps),
-                                width=4
+                                [
+                                    html.H4("Active Steps", className="color-main", style={"text-align":"left"}),
+                                    dcc.Graph(figure=fig_active_steps)
+                                ],
+                                width=5
                             ),
-                            dbc.Col(html.Div(className="divider"), width=1),
+                            dbc.Col(html.Div(className="divider"), width=2),
                             dbc.Col(
-                                dcc.Graph(figure=fig_active_mins),
-                                width=4
+                                [
+                                    html.H4("Active Minutes", className="color-main", style={"text-align":"left"}),
+                                    dcc.Graph(figure=fig_active_mins)
+                                ],
+                                width=5
                             )
                         ],
-                        className="row white-background"),
-                    width=9
+                        className="row flex-container white-background",
+                        style={"margin":"20px", "align-items": "center", "justify-content": "space-evenly"}
+                    ),
+                    width=9,
                 )
             ],
-            className="row"
+            className="row flex-container",
+            style={"align-items": "flex-start"}
         )
     ]
-
-# Display data information used in graphs
-@app.callback(
-        Output("content-patientinfo", "children"),
-        [Input("upload-data", "filename"),
-         Input("read-data", "children")]
-)
-def update_patient_info(filename, json_data):
-    """
-    Display the patient participant information as indicated on the filename
-
-    filename: name of the provided csv file
-    json_data: json wrapped Arduino data
-    """
-    if json_data is None: return None
-
-    df = pd.read_json(io.StringIO(json_data), orient="split")
-
-    # Dummy data doesn"t need filename parsing
-    if df["timestamp"].iloc[0] == datetime(2024,2,1,0,0,0):
-        return [
-            html.H4("Basic Information", className="color-main"),
-            html.Br(),
-            html.H5("The graphs are currently randomly generated", className="color-sub")
-        ]
-    # Extract from filename
-    else:
-        if filename:
-            # TODO: Confirm filename style (i.e., IMUData_Readable_UID_DeviceType)
-            parts = filename.split("_")
-            patient_id = parts[2]
-            device_type = parts[3].split(".")[0]
-
-            return [
-                html.H4("Basic Information", className="color-main"),
-                html.Br(),
-                html.H5(f"UID: {patient_id}", className="color-sub"),
-                html.Br(),
-                html.H5(f"Device Type: {device_type}", className="color-sub")
-            ]
-
-        return [html.H4("Basic Information Unavailable")]
 
 # Visualize full data
 @app.callback(
@@ -568,6 +577,7 @@ def update_boxwhisker(selected_value, json_data):
         hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"}
     )
 
+    # TODO: Revisit the bottom code
     return dbc.Row(
         dbc.Col(
             dcc.Loading(
