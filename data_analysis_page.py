@@ -39,14 +39,14 @@ layout = html.Div([
                             multiple=False,
                             className="upload-box"
                         ),
-                        width=8
+                        width=8,
                     ),
                     dbc.Col(
                         html.Div(id="content-patientinfo", className="content-patientinfo"),
-                        width=4
+                        width=4,
                     )
                 ],
-                className="row"
+                className="row flex-container"
             ),
             dbc.Row(
                 [
@@ -78,7 +78,8 @@ layout = html.Div([
                                     100: "100"
                                 },
                                 value=1,
-                                id="active-step-slider"
+                                id="active-step-slider",
+                                className="active-step-slider"
                             )
                         ],
                         width=8,
@@ -102,16 +103,17 @@ layout = html.Div([
                     ),
                     html.Div(id="tab-content-scatter", className="graph-section")
                 ],
-                className="row"
+                className="row",
+                style={"margin-bottom": "5px"}
             ),
             dbc.Row(
                 [
                     dbc.Col(
                         [
                             html.H4("Weekly Breakdown", className="color-main"),
-                            html.Div(id="content-sunburst")
+                            html.Div(id="content-sunburst", className="white-background-2")
                         ],
-                        width=4
+                        width=4,
                     ),
                     dbc.Col(
                         [
@@ -230,8 +232,7 @@ def update_patient_info(filename, json_data):
     # Dummy data doesn"t need filename parsing
     if df["timestamp"].iloc[0] == datetime(2024,2,1,0,0,0):
         return [
-            html.H4("Basic Information", className="color-main"),
-            html.Br(),
+            html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
             html.H5("The graphs are currently randomly generated", className="color-sub")
         ]
     # Extract from filename
@@ -243,11 +244,9 @@ def update_patient_info(filename, json_data):
             device_type = parts[3].split(".")[0]
 
             return [
-                html.H4("Basic Information", className="color-main"),
-                html.Br(),
+                html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
                 html.H5(f"UID: {patient_id}", className="color-sub"),
-                html.Br(),
-                html.H5(f"Device Type: {device_type}", className="color-sub")
+                html.H5(f"Device Type: {device_type}", className="color-sub", style={"margin-bottom":"15px"})
             ]
 
         return [html.H4("Basic Information Unavailable")]
@@ -269,7 +268,7 @@ def update_collected_period(json_data):
     collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
                     " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
 
-    return html.H5(collected_period, className="color-sub", 
+    return html.H5(collected_period, className="color-sub",
                    style={"text-align":"left"})
 
 # Display total steps in the used data
@@ -302,7 +301,8 @@ def update_total_info(json_data, active_steps_defn):
         values=[active_step, inactive_step],
         hole=0.7,
         hoverinfo="label+percent+value",
-        textinfo="none"
+        textinfo="none",
+        marker=dict(colors= px.colors.sequential.GnBu[5:7])
     ))
 
     fig_active_steps.update_layout(
@@ -317,9 +317,8 @@ def update_total_info(json_data, active_steps_defn):
             )
         ],
         autosize=True,
-        paper_bgcolor="ghostwhite",
-        plot_bgcolor="ghostwhite",
-        margin={"l":20, "r":20, "t":10, "b":10},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
         uniformtext={"minsize":16, "mode":"hide"},
         showlegend=False,
         hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"},
@@ -330,7 +329,8 @@ def update_total_info(json_data, active_steps_defn):
             values=[active_min, inactive_min],
             hole=0.7,
             hoverinfo="label+percent+value",
-            textinfo="none"
+            textinfo="none",
+            marker=dict(colors=px.colors.sequential.GnBu[3:5])
         ))
 
     fig_active_mins.update_layout(
@@ -345,9 +345,8 @@ def update_total_info(json_data, active_steps_defn):
             )
         ],
         autosize=True,
-        paper_bgcolor="ghostwhite",
-        plot_bgcolor="ghostwhite",
-        margin={"l":20, "r":20, "t":10, "b":10},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
         uniformtext={"minsize":16, "mode":"hide"},
         showlegend=False,
         hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"},
@@ -357,25 +356,34 @@ def update_total_info(json_data, active_steps_defn):
         [
             dbc.Col(
                 [
-                    html.H4("Total Steps", className="color-main"),
                     html.Div(
                         [
-                            html.Span(total_steps, style={"font-weight":"bold", "font-size":"40px"}),
-                            html.Span(" Steps", style={"margin-left": "5px", "font-size":"18px"})
+                            html.H4("Total Steps", className="color-main"),
+                            html.Div(
+                                [
+                                    html.Span(total_steps, style={"font-weight":"bold", "font-size":"40px"}),
+                                    html.Span(" Steps", style={"margin-left": "5px", "font-size":"18px"})
+                                ],
+                                className="color-sub",
+                            )
                         ],
-                        className="color-sub",
-                        style={"margin-bottom":"30px"}
+                        className="white-background-1"
                     ),
-                    html.H4("Total Minutes Recorded", className="color-main"),
+                    html.Div(style={"margin":"100px"}),
                     html.Div(
                         [
-                            html.Span(total_min, style={"font-weight":"bold", "font-size":"40px"}),
-                            html.Span(" Min.", style={"margin-left": "5px", "font-size":"18px"})
+                            html.H4("Total Minutes Recorded", className="color-main"),
+                            html.Div(
+                                [
+                                    html.Span(total_min, style={"font-weight":"bold", "font-size":"40px"}),
+                                    html.Span(" Min.", style={"margin-left": "5px", "font-size":"18px"})
+                                ],
+                                className="color-sub",
+                            ),
                         ],
-                        className="color-sub",
-                    ),
+                        className="white-background-1"
+                    )
                 ],
-                className="white-background",
                 style={"text-align":"left"},
                 width=3
             ),
@@ -398,8 +406,7 @@ def update_total_info(json_data, active_steps_defn):
                             width=5
                         )
                     ],
-                    className="row flex-container white-background",
-                    style={"margin":"20px", "align-items": "center", "justify-content": "space-evenly"}
+                    className="white-background-2",
                 ),
                 width=9,
             )
@@ -549,8 +556,8 @@ def update_sunburst(json_data):
                   "%{customdata[2]} Steps<br>"
     )
     fig.update_layout(
-        paper_bgcolor="ghostwhite",
-        plot_bgcolor="ghostwhite",
+        paper_bgcolor="white",
+        plot_bgcolor="white",
         margin={"l":10, "r":10, "t":20, "b":10},
         uniformtext={"minsize":18, "mode":"hide"},
         hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"}
