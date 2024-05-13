@@ -323,7 +323,7 @@ def update_total_steps(json_data):
 )
 def update_total_minutes(json_data):
     """
-    Display total steps of the displaying data
+    Display total minutes of the displaying data
 
     json_data: json wrapped Arduino data
     """
@@ -338,7 +338,7 @@ def update_total_minutes(json_data):
         html.Span(" Min.", style={"margin-left": "5px", "font-size":"18px"})
     ]
 
-# Display total steps in the used data
+# Display active steps in the used data
 @app.callback(
         Output("content-active-steps", "children"),
         [Input("read-data", "children"),
@@ -346,7 +346,7 @@ def update_total_minutes(json_data):
 )
 def update_active_steps(json_data, active_steps_defn):
     """
-    Display high-level information related to the displaying data
+    Display active steps related to the displaying data
 
     json_data: json wrapped Arduino data
     """
@@ -389,7 +389,7 @@ def update_active_steps(json_data, active_steps_defn):
 
     return dcc.Graph(figure=fig_active_steps, style={'height': '100%', 'width': '100%'})
 
-# Display total steps in the used data
+# Display active minutes in the used data
 @app.callback(
         Output("content-active-minutes", "children"),
         [Input("read-data", "children"),
@@ -397,7 +397,7 @@ def update_active_steps(json_data, active_steps_defn):
 )
 def update_active_minutes(json_data, active_steps_defn):
     """
-    Display high-level information related to the displaying data
+    Display active minutes related to the displaying data
 
     json_data: json wrapped Arduino data
     """
