@@ -296,6 +296,7 @@ app.layout = html.Div([
         brand="BJI IMU APPLICATION",
         brand_href="/",
         color="royalblue",
+        sticky="top",
         dark=True,
         fluid=True,
         style={"cursor":"pointer"}
