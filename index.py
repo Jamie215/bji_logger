@@ -42,7 +42,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
             dbc.Row(
                 html.Div([
                     "The device has been initialized for ",
-                    html.Span(selected_dt, style={"color": "CornFlowerBlue", "font-weight":"bold"}),
+                    html.Span(selected_dt, style={"color": "RoyalBlue", "font-weight":"bold"}),
                     " and powered down. It will be counting steps in the next powerup.",
                     html.Br(),
                     html.Br(),
@@ -295,7 +295,7 @@ app.layout = html.Div([
     dbc.NavbarSimple(
         brand="BJI IMU APPLICATION",
         brand_href="/",
-        color="cornflowerblue",
+        color="royalblue",
         dark=True,
         fluid=True,
         style={"cursor":"pointer"}

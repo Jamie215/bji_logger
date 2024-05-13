@@ -5,7 +5,7 @@
 .nav-link {
     font-family: 'Roboto';
     font-size: 16px;
-    color: cornflowerblue !important;
+    color: royalblue !important;
 }
 
 .nav-link.active {
@@ -21,7 +21,7 @@ body {
 .modal-header {
     padding-top: 5px;
     padding-bottom: 5px;
-    background-color: cornflowerblue;
+    background-color: royalblue;
 }
 
 .modal-body {
@@ -76,20 +76,20 @@ body {
 
 .DateInput_input__focused {
     min-width: 180px;
-    border-bottom-color: cornflowerblue;
+    border-bottom-color: royalblue;
 }
 
 .DayPickerKeyboardShortcuts_show__bottomRight::before {
-    border-right-color: cornflowerblue;
+    border-right-color: royalblue;
 }
 
 .CalendarDay__selected {
-    background-color: cornflowerblue;
+    background-color: royalblue;
     color: white;
 }
 
 .CalendarDay__selected:hover {
-    background-color: cornflowerblue;
+    background-color: royalblue;
     color: white;
 }
 
@@ -103,7 +103,7 @@ body {
 .dropdown-label {
     display: block;
     font-weight: bold;
-    color: cornflowerblue;
+    color: royalblue;
 }
 
 /* Icons for Initiation Process*/
@@ -167,7 +167,7 @@ body {
     padding: 10px;
     border-width: 2px;
     border-radius: 10px;
-    border-color: cornflowerblue;
+    border-color: royalblue;
     text-align: center;
     font-size: 24px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -175,7 +175,7 @@ body {
 }
 
 .page-btn:hover {
-    background-color: cornflowerblue;
+    background-color: royalblue;
     color: white;
 }
 
@@ -226,7 +226,6 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    text-align: center;
 }
 
 .content-patientinfo {
@@ -276,9 +275,9 @@ body {
     font-family: 'Roboto';
 }
 
-/* .row {
-    margin-bottom: 40px;
-} */
+.row {
+    margin: 10px;
+}
 
 /* Card Related */
 .card-body {
@@ -298,7 +297,7 @@ body {
 }
 
 .card-title {
-    background-color: cornflowerblue;
+    background-color: royalblue;
     font-size: 20px;
     font-weight: bold;
     color: ghostwhite;
