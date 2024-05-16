@@ -33,9 +33,9 @@ body {
 
 .modal-footer {
     display: block;
-    height: 70px;
+    height: 80px;
     width: 100%;
-    padding: 5px 20px 5px 20px;
+    padding: 0px 10px 0px 10px;
 }
 
 .modal-header-text {

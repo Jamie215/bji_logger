@@ -3,7 +3,6 @@ Import Libraries
 """
 import atexit
 
-from flask import request
 import os
 import signal
 
@@ -17,11 +16,11 @@ external_stylesheets = [
     "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
     dbc.themes.LITERA,
     "https://use.fontawesome.com/releases/v5.8.1/css/all.css",
-    "/assets/style.css"
+    "assets/style.css"
 ]
 
 # Initialize the app
-app = Dash(__name__, external_stylesheets=external_stylesheets, suppress_callback_exceptions=True)
+app = Dash(__name__, external_stylesheets=external_stylesheets, assets_folder=os.getcwd()+'/assets/', suppress_callback_exceptions=True)
 server = app.server
 
 @server.route("/shutdown", methods=["POST"])

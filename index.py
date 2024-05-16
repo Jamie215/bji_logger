@@ -247,7 +247,11 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
 
 def index_layout():
     """
-    Set index page layout
+    Set index page layout, displaying three features
+    
+        1. Initialize Device
+        2. Data Download
+        3. Data Analysis
     """
     return html.Div(
         [
