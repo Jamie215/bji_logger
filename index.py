@@ -446,18 +446,14 @@ def download_data(raw_click, read_click):
         file_name = "IMUDATA_Raw.raw"
         file_path = os.path.join(USER_FILES_DIR, file_name)
         arduino.download_file(file_path)
+        return dcc.send_file(file_path)
 
-        with open(file_path, "rb") as file:
-            file_contents = file.read()
-        return dcc.send_bytes(lambda buffer: buffer.write(file_contents), file_name)
     if read_click:
         file_name = "IMUData_Readable.csv"
         file_path = os.path.join(USER_FILES_DIR, file_name)
         arduino.download_file(file_path, True)
-
-        with open(file_path, "rb") as file:
-            file_contents = file.read()
-        return dcc.send_bytes(lambda buffer: buffer.write(file_contents), file_name)
+        return dcc.send_file(file_path)
+    
     raise exceptions.PreventUpdate
 
 @app.callback(
