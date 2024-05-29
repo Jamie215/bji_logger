@@ -440,19 +440,21 @@ def download_data(raw_click, read_click):
     read_click: "Download .CSV Data" button click instance 
     """
     # Download path is set to the default path of the browser downloads
+    
     USER_FILES_DIR = os.getcwd()
+    DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
+
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
     if raw_click:
         file_name = "IMUDATA_Raw.raw"
-        file_path = os.path.join(USER_FILES_DIR, file_name)
+        file_path = os.path.join(DOWNLOAD_DIR, file_name)
         arduino.download_file(file_path)
-        return dcc.send_file(file_path)
 
     if read_click:
         file_name = "IMUData_Readable.csv"
-        file_path = os.path.join(USER_FILES_DIR, file_name)
+        file_path = os.path.join(DOWNLOAD_DIR, file_name)
         arduino.download_file(file_path, True)
-        return dcc.send_file(file_path)
     
     raise exceptions.PreventUpdate
 
