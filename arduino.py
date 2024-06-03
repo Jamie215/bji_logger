@@ -92,6 +92,8 @@ def download_file(file_path, get_readable=False):
     get_readable: download .RAW or .CSV format (boolean)
     """
     global arduino_serial
+    print(f"arduino serial {arduino_serial}")
+    
     try:
         with open(file_path, "wb") as file:
             # Send "r" to the Arduino to initiate readable file transfer, or "t" for binary.

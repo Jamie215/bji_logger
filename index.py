@@ -73,7 +73,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
                 className="mb-4"
             ),
             html.Div("Enter your filename."),
-            dbc.Input(id="download-filename", placeholder="Subject(UID)_(Quarter).(DeviceIteration)", required=True, className="mb-2"),
+            dbc.Input(id="download-filename", placeholder="Subject(UID)_(Quarter).(DeviceIteration)", value="Subject_", required=True, className="mb-2"),
             html.Div(id="download-file-status"),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
@@ -462,12 +462,14 @@ def download_data(filetype, filename, download_click, last_click_time):
 
         if filetype == 1:
             filename = f"{filename}.raw"
+            get_readable = False
         elif filetype == 2:
             filename = f"{filename}.csv"
+            get_readable = True
 
         file_path = os.path.join(DOWNLOAD_DIR, filename)
         file_status = html.Div("Download Complete", style={"color": "mediumseagreen"})
-        return (arduino.download_file(file_path), {}, file_status)
+        return (arduino.download_file(file_path, get_readable), {}, file_status)
 
     return (None, {}, None)
 
