@@ -261,15 +261,15 @@ def update_patient_info(filename, json_data):
     # Extract from filename
     else:
         if filename:
-            # TODO: Confirm filename style (i.e., IMUData_Readable_UID_DeviceType)
+            # TODO: Confirm filename style
             parts = filename.split("_")
-            patient_id = parts[2]
-            device_type = parts[3].split(".")[0]
+            patient_id = parts[0]
+            device_version = parts[1]
 
             return [
                 html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
                 html.H5(f"UID: {patient_id}", className="color-sub"),
-                html.H5(f"Device Type: {device_type}", className="color-sub", style={"margin-bottom":"15px"})
+                html.H5(f"Device Version: {device_version}", className="color-sub", style={"margin-bottom":"15px"})
             ]
 
         return [html.H4("Basic Information Unavailable")]
