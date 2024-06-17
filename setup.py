@@ -19,7 +19,7 @@ executables = [
 
 setup(
     name="BJI_Logger",
-    version="2.4",
+    version="2.5",
     description="BJI CORK Project Data Application",
     options={"build_exe": build_exe_options},
     executables=executables
