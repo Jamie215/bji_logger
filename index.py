@@ -8,7 +8,7 @@ import json
 import os
 
 import pytz
-from dash import dcc, html, Input, Output, State, exceptions, callback_context
+from dash import dcc, html, Input, Output, State, callback_context
 import dash
 import dash_bootstrap_components as dbc
 
@@ -63,6 +63,18 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
     elif download:
         status_msg = [
             html.Div("Select from below to download the appropriate format.", className="mb-2"),
+            dbc.Select(
+                id="download-filetype",
+                options=[
+                    {"label": ".RAW", "value": "1"},
+                    {"label": ".CSV", "value": "2"}
+                ],
+                value=2,
+                className="mb-4"
+            ),
+            html.Div("Enter your filename."),
+            dbc.Input(id="download-filename", placeholder="Subject(UID)_(Quarter).(DeviceIteration)", value="Subject_", required=True, className="mb-2"),
+            html.Div(id="download-file-status"),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
     elif error:
@@ -94,8 +106,6 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
         ]
 
     curr_date = datetime.datetime.now()
-
-
     initialize_view = [
         dbc.Row([
             dbc.Col(
@@ -155,17 +165,11 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
         html.Div(
             [
                 dbc.Button(
-                        [html.I(className="fas fa-file-download mr-2"), " Download .RAW Data"],
-                        id="download-raw",
+                        [html.I(className="fas fa-file-download mr-2"), " Download Data"],
+                        id="download-btn",
                         className="ms-2 download-btn",
                         style={"display": "none"} if not download else {}
-                ),
-                dbc.Button(
-                        [html.I(className="fas fa-file-csv mr-2"), " Download .CSV Data"],
-                        id="download-read",
-                        className="ms-2 download-btn",
-                        style={"display": "none"} if not download else {}
-                ),
+                )
             ],
             className="flex-container"
         ),
@@ -428,37 +432,46 @@ def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, con
     return is_open, dash.no_update, json_data
 
 @app.callback(
-        Output("download-data", "data"),
-        [Input("download-raw", "n_clicks"),
-         Input("download-read", "n_clicks")],
+        [Output("download-data", "data"),
+         Output("download-filename", "style"),
+         Output("download-file-status", "children")],
+        [Input("download-filetype", "value"),
+         Input("download-filename", "value"),
+         Input("download-btn", "n_clicks")],
+        [State("download-btn", "n_clicks_timestamp")],
          prevent_initial_call=True)
-def download_data(raw_click, read_click):
+def download_data(filetype, filename, download_click, last_click_time):
     """
     Download the Arduino data in a specified format
 
     raw_click: "Download .RAW Data" button click instance
-    read_click: "Download .CSV Data" button click instance 
+    read_click: "Download .CSV Data" button click instance
+    filename: Text Input from user for filename
     """
-    # Download path is set to the default path of the browser downloads
+    ctx = callback_context
+
     USER_FILES_DIR = os.getcwd()
+    DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-    if raw_click:
-        file_name = "IMUDATA_Raw.raw"
-        file_path = os.path.join(USER_FILES_DIR, file_name)
-        arduino.download_file(file_path)
+    # Check if the download button was clicked.
+    if ctx.triggered and ctx.triggered[0]['prop_id'].endswith('.n_clicks'):
+        if not filename or filename.strip() == "":
+            file_status = html.Div("Please enter a filename.", style={"color": "indianred"})
+            return (None, {"bordercolor": "red", "boxShadow": "0 0 0 0.25rem rgb(255 0 0 / 25%)"}, file_status)
 
-        with open(file_path, "rb") as file:
-            file_contents = file.read()
-        return dcc.send_bytes(lambda buffer: buffer.write(file_contents), file_name)
-    if read_click:
-        file_name = "IMUData_Readable.csv"
-        file_path = os.path.join(USER_FILES_DIR, file_name)
-        arduino.download_file(file_path, True)
+        if filetype == 1:
+            filename = f"{filename}.raw"
+            get_readable = False
+        elif filetype == 2:
+            filename = f"{filename}.csv"
+            get_readable = True
 
-        with open(file_path, "rb") as file:
-            file_contents = file.read()
-        return dcc.send_bytes(lambda buffer: buffer.write(file_contents), file_name)
-    raise exceptions.PreventUpdate
+        file_path = os.path.join(DOWNLOAD_DIR, filename)
+        file_status = html.Div("Download Complete", style={"color": "mediumseagreen"})
+        return (arduino.download_file(file_path, get_readable), {}, file_status)
+
+    return (None, {}, None)
 
 @app.callback(
     Output("action-modal-open-state", "data", allow_duplicate=True),
