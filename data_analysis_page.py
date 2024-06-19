@@ -145,7 +145,8 @@ layout = html.Div([
                                 id="graph-tab-boxwhisker",
                                 children=[
                                     dbc.Tab(label="Throughout the Day (Over Hours)", tab_id="boxwhisker-hourly"),
-                                    dbc.Tab(label="Throughout the Week (Over Days)", tab_id="boxwhisker-daily")
+                                    dbc.Tab(label="Throughout the Week (Over Days)", tab_id="boxwhisker-daily"),
+                                    dbc.Tab(label="Throughout the Collected Period (Over Each Week of Months)", tab_id="boxwhisker-monthly")
                                 ],
                                 active_tab="boxwhisker-hourly",
                             ),
@@ -205,6 +206,17 @@ def aggregate_data(df, unit):
     df: dataframe containing arduino data
     unit: specified unit of time for aggregation
     """
+    # Abbreviation mappings for days and months
+    day_abbreviations = {
+        "Monday": "Mon", "Tuesday": "Tue", "Wednesday": "Wed",
+        "Thursday": "Thu", "Friday": "Fri", "Saturday": "Sat", "Sunday": "Sun"
+    }
+    month_abbreviations = {
+        "January": "Jan", "February": "Feb", "March": "Mar", "April": "Apr",
+        "May": "May", "June": "Jun", "July": "Jul", "August": "Aug",
+        "September": "Sep", "October": "Oct", "November": "Nov", "December": "Dec"
+    }
+    
     if unit == "hour":
         df_new = df.resample("h", on="timestamp").steps.sum()
         df_new = df_new.to_frame().reset_index()
@@ -214,25 +226,11 @@ def aggregate_data(df, unit):
         df_new = df_new.to_frame().reset_index()
         df_new["day"] = df_new["timestamp"].dt.day
         df_new["day_of_week"] = df_new["timestamp"].dt.weekday
-
         if unit == "month":
             df_new["day_of_week"] = df_new["timestamp"].dt.day_name()
             df_new["month"] = df_new["timestamp"].dt.month_name()
-
-            # Abbreviation mappings for days and months
-            day_abbreviations = {
-                "Monday": "Mon", "Tuesday": "Tue", "Wednesday": "Wed",
-                "Thursday": "Thu", "Friday": "Fri", "Saturday": "Sat", "Sunday": "Sun"
-            }
-            month_abbreviations = {
-                "January": "Jan", "February": "Feb", "March": "Mar", "April": "Apr",
-                "May": "May", "June": "Jun", "July": "Jul", "August": "Aug",
-                "September": "Sep", "October": "Oct", "November": "Nov", "December": "Dec"
-            }
-
             df_new["month"] = df_new["month"].map(month_abbreviations)
             df_new["day_of_week"] = df_new["day_of_week"].map(day_abbreviations)
-            
     return df_new
 
 # Display data information used in graphs
@@ -264,7 +262,7 @@ def update_patient_info(filename, json_data):
             # TODO: Confirm filename style
             parts = filename.split("_")
             patient_id = parts[0]
-            device_version = parts[1]
+            device_version = parts[1].rsplit('.', 1)[0]
 
             return [
                 html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
@@ -638,7 +636,7 @@ def update_boxwhisker(selected_value, json_data):
 
         plot = go.Figure(traces)
         plot.update_layout(xaxis_title="Hour of the Day", yaxis_title="Steps", showlegend=False)
-    else:
+    elif selected_value == "boxwhisker-daily":
         # Aggregate data by day
         df_new = aggregate_data(df, "day")
         num_categories = df_new["day_of_week"].nunique()
@@ -663,6 +661,30 @@ def update_boxwhisker(selected_value, json_data):
 
         plot = go.Figure(traces)
         plot.update_layout(xaxis_title="Day of the Week", yaxis_title="Steps", showlegend=False)
+    else:
+        # Aggregate data by month
+        df_new = aggregate_data(df, "month")
+        num_categories = df_new["month"].nunique()
+        color_scale = px.colors.sequential.Agsunset
+        colors = {month: color_scale[int(np.floor(idx / num_categories * (len(color_scale) - 1)))]
+                    for idx, month in enumerate(df_new["month"].unique())}
+
+        for month in df_new["month"].unique():
+            # Plot the box & whisker plot of daily aggregated data
+            trace = go.Box(
+                y=df_new[df_new["month"]==month]["steps"].values,
+                name=month,
+                boxpoints="outliers",
+                marker_color=colors[month],
+                marker={"outliercolor":"rgba(219, 64, 82, 0.6)",
+                        "line":{"outliercolor":"rgba(219, 64, 82, 0.6)",
+                                "outlierwidth":2}
+                }
+            )
+            traces.append(trace)
+
+        plot = go.Figure(traces)
+        plot.update_layout(xaxis_title="Month", yaxis_title="Steps", showlegend=False)
 
     plot.update_layout(
         margin={"l":20, "r":20, "t":20, "b":20},
@@ -670,7 +692,6 @@ def update_boxwhisker(selected_value, json_data):
         hoverlabel={"bgcolor":"white", "font_size":16, "font_family":"Roboto"}
     )
 
-    # TODO: Revisit the bottom code
     return dbc.Row(
         dbc.Col(
             dcc.Loading(
