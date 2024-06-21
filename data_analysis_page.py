@@ -216,7 +216,7 @@ def aggregate_data(df, unit):
         "May": "May", "June": "Jun", "July": "Jul", "August": "Aug",
         "September": "Sep", "October": "Oct", "November": "Nov", "December": "Dec"
     }
-    
+
     if unit == "hour":
         df_new = df.resample("h", on="timestamp").steps.sum()
         df_new = df_new.to_frame().reset_index()
@@ -231,6 +231,7 @@ def aggregate_data(df, unit):
             df_new["month"] = df_new["timestamp"].dt.month_name()
             df_new["month"] = df_new["month"].map(month_abbreviations)
             df_new["day_of_week"] = df_new["day_of_week"].map(day_abbreviations)
+
     return df_new
 
 # Display data information used in graphs
@@ -249,6 +250,18 @@ def update_patient_info(filename, json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where input data is empty
+    if pd.DataFrame(df).empty:
+        parts = filename.split("_")
+        patient_id = parts[0]
+        device_version = parts[1].rsplit('.', 1)[0]
+
+        return [
+            html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
+            html.H5(f"UID: {patient_id}", className="color-sub"),
+            html.H5(f"Device Version: {device_version}", className="color-sub", style={"margin-bottom":"15px"}),
+            html.H5("* Note: The selected data file is empty", className="color-sub")
+        ]
 
     # Dummy data doesn"t need filename parsing
     if df["timestamp"].iloc[0] == datetime(2024,2,1,0,0,0):
@@ -257,20 +270,18 @@ def update_patient_info(filename, json_data):
             html.H5("The graphs are currently randomly generated", className="color-sub")
         ]
     # Extract from filename
-    else:
-        if filename:
-            # TODO: Confirm filename style
-            parts = filename.split("_")
-            patient_id = parts[0]
-            device_version = parts[1].rsplit('.', 1)[0]
+    if filename:
+        parts = filename.split("_")
+        patient_id = parts[0]
+        device_version = parts[1].rsplit('.', 1)[0]
 
-            return [
-                html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
-                html.H5(f"UID: {patient_id}", className="color-sub"),
-                html.H5(f"Device Version: {device_version}", className="color-sub", style={"margin-bottom":"15px"})
-            ]
+        return [
+            html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
+            html.H5(f"UID: {patient_id}", className="color-sub"),
+            html.H5(f"Device Version: {device_version}", className="color-sub", style={"margin-bottom":"15px"})
+        ]
 
-        return [html.H4("Basic Information Unavailable")]
+    return [html.H4("Basic Information Unavailable")]
 
 # Display collected period of the data
 @app.callback(
@@ -286,6 +297,13 @@ def update_collected_period(json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
     collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
                     " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
 
@@ -306,7 +324,14 @@ def update_total_steps(json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
-
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
+    
     total_steps = df["steps"].sum()
 
     return [
@@ -328,6 +353,13 @@ def update_total_minutes(json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
     total_min = round((df["timestamp"].iloc[-1]-df["timestamp"].iloc[0]).total_seconds() / 60)
 
@@ -351,6 +383,13 @@ def update_active_steps(json_data, active_steps_defn):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
     unit_active_steps = active_steps_defn
     active_step = df[df["steps"] >= unit_active_steps]["steps"].sum()
@@ -402,6 +441,13 @@ def update_active_minutes(json_data, active_steps_defn):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
     unit_active_steps = active_steps_defn
     active_min = len(df[df["steps"] >= unit_active_steps]) * 5
@@ -454,6 +500,13 @@ def update_scatter(selected_value, json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
     if selected_value =="scatter-hourly":
         # Aggregate data by hour
@@ -480,7 +533,7 @@ def update_scatter(selected_value, json_data):
         plot = go.Figure()
         plot.add_trace(go.Scatter(x=df_new["timestamp"], y = df_new["steps"], mode="lines+markers"))
         plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
-        # For Histogram
+        # For Histogram View
         # plot = px.histogram(df_day, x="timestamp", y="steps", nbins=df_day.shape[0])
         # plot.update_layout(xaxis_title="Date",
         #                     yaxis_title="Steps",
@@ -561,6 +614,13 @@ def update_sunburst(json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
     df_new = aggregate_data(df, "month")
     df_sunburst = df_new.groupby(["month", "day_of_week"]).agg({"steps":"sum"}).reset_index()
     num_months = len(df_sunburst.month.unique())
@@ -604,6 +664,13 @@ def update_boxwhisker(selected_value, json_data):
     if json_data is None: return None
 
     df = pd.read_json(io.StringIO(json_data), orient="split")
+    # Handle cases where the input data is empty
+    if pd.DataFrame(df).empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
     traces = []
 
     if selected_value == "boxwhisker-hourly":
