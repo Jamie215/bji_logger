@@ -1,3 +1,4 @@
+import sys
 from cx_Freeze import setup, Executable
 
 # Dependencies are automatically detected, but some might need fine-tuning
@@ -8,6 +9,8 @@ build_exe_options = {
 
 # Base can be "Win32GUI" if you're building a GUI application on Windows
 base = None
+if sys.platform == "win32":
+    base = "Win32GUI"
 
 executables = [
     Executable(

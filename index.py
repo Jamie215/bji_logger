@@ -11,8 +11,9 @@ import pytz
 from dash import dcc, html, Input, Output, State, callback_context
 import dash
 import dash_bootstrap_components as dbc
+import requests
 
-from app import app
+from app import app, socketio
 from data_analysis_page import layout as data_analysis_layout
 import arduino
 
@@ -516,13 +517,26 @@ def display_page(pathname):
         return data_analysis_layout
     return index_layout()
 
-def open_browser():
+def open_browser(port):
     """
     Open the web browser automatically when the application is launched
     """
-    webbrowser.open_new("http://127.0.0.1:8050/")
+    webbrowser.open_new(f"http://127.0.0.1:{port}/")
+
+def shutdown(port):
+    """
+    Shutdown the Flask server when the application is closed
+    """
+    try:
+        requests.post(f"http://127.0.0.1:{port}/shutdown")
+    except requests.exceptions.RequestException:
+        pass
 
 # Main
 if __name__ == "__main__":
-    Timer(1, open_browser).start()
-    app.run_server(debug=False)
+    port = 8050
+    Timer(1, open_browser, args=[port]).start()
+    try:
+        socketio.run(app.server, port=port, debug=False)
+    finally:
+        shutdown(port)
