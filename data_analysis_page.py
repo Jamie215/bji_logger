@@ -269,17 +269,25 @@ def update_patient_info(filename, json_data):
             html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
             html.H5("The graphs are currently randomly generated", className="color-sub")
         ]
+
     # Extract from filename
     if filename:
-        parts = filename.split("_")
-        patient_id = parts[0]
-        device_version = parts[1].rsplit('.', 1)[0]
-
-        return [
-            html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
-            html.H5(f"UID: {patient_id}", className="color-sub"),
-            html.H5(f"Device Version: {device_version}", className="color-sub", style={"margin-bottom":"15px"})
-        ]
+        try:
+            parts = filename.split("_")
+            patient_id = parts[0]
+            device_version = parts[1].rsplit('.', 1)[0]
+        except IndexError:
+            # Filenames that are not following the convention
+            return [
+                html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
+                html.H5(f"File Name: {filename}", className="color-sub")
+            ]
+        else:
+            return [
+                html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
+                html.H5(f"UID: {patient_id}", className="color-sub"),
+                html.H5(f"Device Version: {device_version}", className="color-sub", style={"margin-bottom":"15px"})
+            ]
 
     return [html.H4("Basic Information Unavailable")]
 
