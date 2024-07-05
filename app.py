@@ -5,6 +5,7 @@ import atexit
 import os
 import logging
 import json
+from threading import Timer
 
 from dash import Dash
 import dash_bootstrap_components as dbc
@@ -29,52 +30,39 @@ app = Dash(__name__, external_stylesheets=external_stylesheets, assets_folder=os
 server = app.server
 socketio = SocketIO(server)
 
+heartbeat_timeout = None
+
+def reset_heartbeat_timer():
+    global heartbeat_timeout
+    if heartbeat_timeout:
+        heartbeat_timeout.cancel()
+    heartbeat_timeout = Timer(10, shutdown_server)
+    heartbeat_timeout.start()
+
+def shutdown_server():
+    """
+    Shut down the server when the user exists from the browser based on heartbeat timer
+    """
+    logging.info("No heartbeat received; shutting down server.")
+    os._exit(0)
+
+@server.route("/heartbeat", methods=["POST"])
+def heartbeat():
+    """
+    Receive heartbeat to determine the interface is still active
+    """   
+    logging.info("Received heartbeat")
+    reset_heartbeat_timer()
+    return "", 204
+
 @server.route("/log", methods=["POST"])
 def log():
+    """
+    For logging purposes
+    """
     data = request.get_json()
     logging.info(f"Client log: {data['message']}")
     return jsonify(success=True)
-
-@server.route("/emit_event", methods=["POST"])
-def emit_event():
-    if request.content_type == 'text/plain;charset=UTF-8':
-        data = request.get_data(as_text=True)
-        try:
-            data = json.loads(data)
-        except json.JSONDecodeError:
-            return "Invalid JSON", 400
-    else:
-        data = request.get_json()
-
-    event = data.get("event")
-    if event == "page_refreshed":
-        socketio.emit("page_refreshed")
-        logging.info("Emitting page_refreshed event from beacon")
-    elif event == "window_closed":
-        socketio.emit("window_closed")
-        logging.info("Emitting window_closed event from beacon")
-        os._exit(0)
-    return jsonify(success=True)
-
-@server.route("/shutdown", methods=["POST"])
-def shutdown():
-    """
-    Shut down the process when the user exists from the browser
-    """
-    logging.info("Shutdown request received")
-    print("Server shutting down...")
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func:
-        func()
-    return "Server shutting down..."
-
-@socketio.on("connect")
-def handle_connect():
-    logging.info("Client connected")
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    logging.info("Client disconnected")
 
 def clean_up():
     """
@@ -88,4 +76,5 @@ def clean_up():
 atexit.register(clean_up)
 
 if __name__ == "__main__":
+    reset_heartbeat_timer()
     socketio.run(server, port=8050)
