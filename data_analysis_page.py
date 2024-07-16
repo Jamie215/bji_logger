@@ -308,8 +308,6 @@ def update_hour_options(start_date, end_date, raw_data):
     start_hour_option = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in start_date_entries["timestamp"].dt.hour.unique()]
     end_hour_option = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in end_date_entries["timestamp"].dt.hour.unique()]
 
-    print(f"start_date {start_date}")
-    print(f"end_date {end_date}")
     return start_hour_option, end_hour_option
 
 @app.callback(
@@ -351,10 +349,6 @@ def update_minute_options(start_date, end_date, start_hour, end_hour, raw_data):
 
     start_min_option = [{"label": str(min).zfill(2), "value": str(min).zfill(2)} for min in start_hour_entries["timestamp"].dt.minute.unique()]
     end_min_option = [{"label": str(min).zfill(2), "value": str(min).zfill(2)} for min in end_hour_entries["timestamp"].dt.minute.unique()]
-
-    print("update_minute_options")
-    print(f"start_date {start_date}")
-    print(f"end_date {end_date}")
 
     return start_min_option, end_min_option
 
@@ -472,7 +466,7 @@ def update_patient_info(filename, raw_data):
     Display the patient participant information as indicated on the filename
 
     filename: name of the provided csv file
-    raw_data: json wrapped Arduino data
+    raw_data: full raw json input
     """
     if raw_data is None: return None
 
@@ -527,7 +521,7 @@ def update_collected_period(raw_data):
     """
     Display the collected period of the full raw data
 
-    raw_data: json wrapped Arduino data
+    raw_data: full raw json input
     """
     if raw_data is None: return None
 
