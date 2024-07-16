@@ -65,11 +65,12 @@ body {
 }
 
 .DateInput_input {
-    padding-top: 4px;
-    padding-bottom: 4px;
+    /* padding-top: 4px;
+    padding-bottom: 4px; */
+    padding: .5rem 1.1rem;
     width: 160px;
     font-family: 'Roboto';
-    font-size: 16px;
+    font-size: 1.1rem;
     font-weight: normal;
     color: black;
 }
@@ -88,9 +89,19 @@ body {
     color: white;
 }
 
+.CalendarDay__selected_span {
+    background-color: cornflowerblue;
+    color: white;
+}
+
 .CalendarDay__selected:hover {
     background-color: royalblue;
     color: white;
+}
+
+.label {
+    font-family: "Roboto";
+    font-size: 16px;
 }
 
 .Select-value {
