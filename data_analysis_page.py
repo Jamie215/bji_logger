@@ -69,35 +69,32 @@ layout = html.Div([
                                             display_format="YYYY-MM-DD"
                                         )
                                     ],
-                                    width=7
+                                    width=5
                                 ),
                                 dbc.Col(
                                     [
                                         html.Label("Start Hour:"),
                                         dcc.Dropdown(id="start-hour-dropdown", clearable=False)
                                     ],
-                                    width=1
                                 ),
                                 dbc.Col(
                                     [
                                         html.Label("Start Minute:"),
                                         dcc.Dropdown(id="start-minute-dropdown", clearable=False)
                                     ],
-                                    width=1
                                 ),
+                                dbc.Col(),
                                 dbc.Col(
                                     [
                                         html.Label("End Hour:"),
                                         dcc.Dropdown(id="end-hour-dropdown", clearable=False)
                                     ],
-                                    width=1
                                 ),
                                 dbc.Col(
                                     [
                                         html.Label("End Minute:"),
                                         dcc.Dropdown(id="end-minute-dropdown", clearable=False)
                                     ],
-                                    width=1
                                 ),
                                 dbc.Col(
                                     [
@@ -105,7 +102,6 @@ layout = html.Div([
                                         dcc.Download(id="download-df-csv"),
                                         html.Div(id="download-status")
                                     ],
-                                    width=1,
                                 )
                             ],
                             className="flex-container",
@@ -274,6 +270,11 @@ def read_data(contents, filename):
     return (df.to_json(date_format="iso", orient="split"), start_date, end_date, 
             start_hour, start_min, end_hour, end_min)
 
+def generate_full_time_options():
+    hours = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in range(24)]
+    minutes = [{"label": str(minute).zfill(2), "value": str(minute).zfill(2)} for minute in range(0, 60, 5)]
+    return hours, minutes
+
 @app.callback(
     Output("start-hour-dropdown", "options"),
     Output("end-hour-dropdown", "options"),
@@ -282,33 +283,8 @@ def read_data(contents, filename):
     [State("raw-data", "data")]
 )
 def update_hour_options(start_date, end_date, raw_data):
-    """
-    Update the hour dropdown options based on the start and end datetime
-
-    start_date: selected start date for the data
-    end_date: selected end date for the data
-    start_hour: selected start hour for the data
-    end_hour: selected end hour for the data
-    raw_data: full raw json input
-    """
-    if raw_data is None: return [], []
-
-    df = pd.read_json(io.StringIO(raw_data), orient="split")
-
-    # Filter the data based on the selected date range
-    start_date_dt = pd.to_datetime(start_date)
-    end_date_dt = pd.to_datetime(end_date)
-    filtered_df = df[(df["timestamp"].dt.date >= start_date_dt.date()) & (df["timestamp"].dt.date <= end_date_dt.date())]
-
-    if filtered_df.empty: return [], []
-
-    start_date_entries = filtered_df[filtered_df["timestamp"].dt.date == start_date_dt.date()]
-    end_date_entries = filtered_df[filtered_df['timestamp'].dt.date == end_date_dt.date()]
-
-    start_hour_option = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in start_date_entries["timestamp"].dt.hour.unique()]
-    end_hour_option = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in end_date_entries["timestamp"].dt.hour.unique()]
-
-    return start_hour_option, end_hour_option
+    hours, _ = generate_full_time_options()
+    return hours, hours
 
 @app.callback(
     Output("start-minute-dropdown", "options"),
@@ -320,37 +296,8 @@ def update_hour_options(start_date, end_date, raw_data):
      [State("raw-data", "data")]
 )
 def update_minute_options(start_date, end_date, start_hour, end_hour, raw_data):
-    """
-    Update the minute dropdown options based on the start and end datetime and hours
-
-    start_date: selected start date for the data
-    end_date: selected end date for the data
-    start_hour: selected start hour for the data
-    end_hour: selected end hour for the data
-    raw_data: full raw json input
-    """
-    if raw_data is None: return [], []
-
-    if not start_date or not end_date or start_hour is None or end_hour is None: return [], []
-    
-    df = pd.read_json(io.StringIO(raw_data), orient="split")
-
-    # Filter the data based on the selected date range
-    start_date_dt = pd.to_datetime(start_date)
-    end_date_dt = pd.to_datetime(end_date)
-    filtered_df = df[(df["timestamp"].dt.date >= start_date_dt.date()) & (df["timestamp"].dt.date <= end_date_dt.date())]
-
-    if filtered_df.empty: return [], []
-
-    start_date_entries = filtered_df[filtered_df["timestamp"].dt.date == start_date_dt.date()]
-    start_hour_entries = start_date_entries[start_date_entries["timestamp"].dt.hour == int(start_hour)]
-    end_date_entries = filtered_df[filtered_df['timestamp'].dt.date == end_date_dt.date()]
-    end_hour_entries = end_date_entries[end_date_entries["timestamp"].dt.hour == int(end_hour)]
-
-    start_min_option = [{"label": str(min).zfill(2), "value": str(min).zfill(2)} for min in start_hour_entries["timestamp"].dt.minute.unique()]
-    end_min_option = [{"label": str(min).zfill(2), "value": str(min).zfill(2)} for min in end_hour_entries["timestamp"].dt.minute.unique()]
-
-    return start_min_option, end_min_option
+    _, minutes = generate_full_time_options()
+    return minutes, minutes
 
 @app.callback(
     Output("selected-data", "data"),
@@ -408,14 +355,14 @@ def download_csv(n_clicks, selected_data):
     if selected_data is None: return None
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
-    file_status = html.Div("Complete", style={"color": "mediumseagreen"})
+    file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
 
     USER_FILES_DIR = os.getcwd()
     DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
     # TODO: Revisit this for naming convention
-    file_name = f"parsed_data_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+    file_name = f"parsed_data_{datetime.now().strftime('%Y%m%d%H%M')}.csv"
     file_path = os.path.join(DOWNLOAD_DIR, file_name)
 
     return (df.to_csv(file_path, index=False), file_status)
