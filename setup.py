@@ -4,7 +4,8 @@ from cx_Freeze import setup, Executable
 # Dependencies are automatically detected, but some might need fine-tuning
 build_exe_options = {
     "include_files": ["assets/"],
-    "build_exe": "BJI_Logger"
+    "build_exe": "BJI_Logger",
+    "packages": ['engineio','socketio','flask_socketio','threading']
 }
 
 # Base can be "Win32GUI" if you're building a GUI application on Windows

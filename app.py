@@ -4,13 +4,13 @@ Import Libraries
 import atexit
 import os
 import logging
-import json
 from threading import Timer
 
 from dash import Dash
 import dash_bootstrap_components as dbc
 from flask import request, jsonify
 from flask_socketio import SocketIO
+from engineio.async_drivers import gevent
 
 import arduino
 
@@ -28,11 +28,14 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 # Initialize the app
 app = Dash(__name__, external_stylesheets=external_stylesheets, assets_folder=os.getcwd()+'/assets/', suppress_callback_exceptions=True)
 server = app.server
-socketio = SocketIO(server)
+socketio = SocketIO(server, async_mode="gevent")
 
 heartbeat_timeout = None
 
 def reset_heartbeat_timer():
+    """
+    Reset the heartbeat timer
+    """
     global heartbeat_timeout
     if heartbeat_timeout:
         heartbeat_timeout.cancel()
@@ -50,7 +53,7 @@ def shutdown_server():
 def heartbeat():
     """
     Receive heartbeat to determine the interface is still active
-    """   
+    """
     logging.info("Received heartbeat")
     reset_heartbeat_timer()
     return "", 204
@@ -77,4 +80,4 @@ atexit.register(clean_up)
 
 if __name__ == "__main__":
     reset_heartbeat_timer()
-    socketio.run(server, port=8050)
+    socketio.run(server, port=8050, allow_unsafe_werkzeug=True)
