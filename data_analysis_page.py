@@ -3,6 +3,7 @@ Import Libraries
 """
 import base64
 import io
+import os
 from datetime import datetime, timedelta
 
 from dash import dcc, html, Input, Output, State
@@ -20,6 +21,8 @@ layout = html.Div([
         [
             # Act as a global variable for the data used for plotting
             html.Div(id="read-data", style={"display":"none"}),
+            dcc.Store(id="raw-data"),
+            dcc.Store(id="selected-data"),
             dbc.Row(
                 [
                     dbc.Col(
@@ -47,13 +50,63 @@ layout = html.Div([
                     )
                 ],
                 className="row flex-container",
-                style={"margin-bottom": "10px"}
+                style={"margin-bottom": "15px"}
             ),
             dbc.Row(
                 dbc.Col(
                     [
-                        html.H4("Collected Period", className="color-main"),
+                        html.H4("Total Collected Period", className="color-main"),
                         html.Div(id="content-collected-period"),
+                        html.H6("Select Time Range", className="color-sub"),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        html.Label("Date Range:"),
+                                        html.Br(),
+                                        dcc.DatePickerRange(
+                                            id="date-picker-range",
+                                            display_format="YYYY-MM-DD"
+                                        )
+                                    ],
+                                    width=5
+                                ),
+                                dbc.Col(
+                                    [
+                                        html.Label("Start Hour:"),
+                                        dcc.Dropdown(id="start-hour-dropdown", clearable=False)
+                                    ],
+                                ),
+                                dbc.Col(
+                                    [
+                                        html.Label("Start Minute:"),
+                                        dcc.Dropdown(id="start-minute-dropdown", clearable=False)
+                                    ],
+                                ),
+                                dbc.Col(),
+                                dbc.Col(
+                                    [
+                                        html.Label("End Hour:"),
+                                        dcc.Dropdown(id="end-hour-dropdown", clearable=False)
+                                    ],
+                                ),
+                                dbc.Col(
+                                    [
+                                        html.Label("End Minute:"),
+                                        dcc.Dropdown(id="end-minute-dropdown", clearable=False)
+                                    ],
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Button("Download", id="download-btn"),
+                                        dcc.Download(id="download-df-csv"),
+                                        html.Div(id="download-status")
+                                    ],
+                                )
+                            ],
+                            className="flex-container",
+                        ),                      
+                        html.Br(),
                         html.H6("Set Active Steps:", className="color-sub", style={"margin-top":"5px"}),
                         dcc.Slider(1, 100,
                             step=None,
@@ -165,7 +218,13 @@ layout = html.Div([
 
 # Create/Read the data for entire dashboard
 @app.callback(
-        Output("read-data", "children"),
+        Output("raw-data", "data"),
+        Output("date-picker-range", "start_date"),
+        Output("date-picker-range", "end_date"),
+        Output("start-hour-dropdown", "value"),
+        Output("start-minute-dropdown", "value"),
+        Output("end-hour-dropdown", "value"),
+        Output("end-minute-dropdown", "value"),
         [Input("upload-data", "contents")],
         [State("upload-data", "filename")]
 )
@@ -181,6 +240,7 @@ def read_data(contents, filename):
         df = pd.DataFrame(
             {"timestamp": np.arange(datetime(2024,2,1,0,0,0), datetime(2024,5,30,23,59,0), timedelta(minutes=5))}
         )
+
         x = np.arange(0,df.size)
         def f(x):
             tmp = np.sin(0.01*x) + np.random.normal(size=len(x))*25
@@ -191,13 +251,125 @@ def read_data(contents, filename):
         _, content_string = contents.split(",")
         decoded = base64.b64decode(content_string)
         if "csv" in filename:
-            df=pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp","steps"])
+            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+            if df.columns[0] == "timestamp" and df.columns[1] == "steps":
+                pass  # CSV has header row
+            else:
+                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
         else:
-            return None
+            return None, None, None, None, None, None, None
 
         df["timestamp"] = pd.to_datetime(df["timestamp"])
+    
+    if df.empty: return None, None, None, None, None, None, None
 
-    return df.to_json(date_format="iso", orient="split")
+    start_date = df["timestamp"].min().strftime("%Y-%m-%d")
+    end_date = df["timestamp"].max().strftime("%Y-%m-%d")
+
+    start_hour = df["timestamp"].min().strftime("%H")
+    start_min = df["timestamp"].min().strftime("%M")
+    end_hour = df["timestamp"].max().strftime("%H")
+    end_min = df["timestamp"].max().strftime("%M")
+
+    return (df.to_json(date_format="iso", orient="split"), start_date, end_date, 
+            start_hour, start_min, end_hour, end_min)
+
+def generate_full_time_options():
+    hours = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in range(24)]
+    minutes = [{"label": str(minute).zfill(2), "value": str(minute).zfill(2)} for minute in range(0, 60, 5)]
+    return hours, minutes
+
+@app.callback(
+    Output("start-hour-dropdown", "options"),
+    Output("end-hour-dropdown", "options"),
+    [Input("date-picker-range", "start_date"),
+     Input("date-picker-range", "end_date")],
+    [State("raw-data", "data")]
+)
+def update_hour_options(start_date, end_date, raw_data):
+    hours, _ = generate_full_time_options()
+    return hours, hours
+
+@app.callback(
+    Output("start-minute-dropdown", "options"),
+    Output("end-minute-dropdown", "options"),
+    [Input("date-picker-range", "start_date"),
+     Input("date-picker-range", "end_date"),
+     Input("start-hour-dropdown", "value"),
+     Input("end-hour-dropdown", "value")],
+     [State("raw-data", "data")]
+)
+def update_minute_options(start_date, end_date, start_hour, end_hour, raw_data):
+    _, minutes = generate_full_time_options()
+    return minutes, minutes
+
+@app.callback(
+    Output("selected-data", "data"),
+    [Input("date-picker-range", "start_date"),
+     Input("date-picker-range", "end_date"),
+     Input("start-hour-dropdown", "value"),
+     Input("start-minute-dropdown", "value"),
+     Input("end-hour-dropdown", "value"),
+     Input("end-minute-dropdown", "value")],
+    [State("raw-data", "data")]
+)
+def update_selected_data(start_date, end_date, start_hour, start_minute, end_hour, end_minute, raw_data):
+    """
+    Parse the data based on the provided datetime range
+
+    start_date: selected start date for the data
+    end_date: selected end date for the data
+    start_hour: selected start hour for the data
+    start_minute: selected start minute for the data
+    end_hour: selected end hour for the data
+    end_minute: selected end minute for the data
+    raw_data: full raw json input
+    """
+    if raw_data is None:
+        return None
+
+    df = pd.read_json(io.StringIO(raw_data), orient="split")
+
+    try:
+        start_dt = f"{start_date} {start_hour}:{start_minute}"
+        end_dt = f"{end_date} {end_hour}:{end_minute}"
+        start_dt = datetime.strptime(start_dt, "%Y-%m-%d %H:%M")
+        end_dt = datetime.strptime(end_dt, "%Y-%m-%d %H:%M")
+    except ValueError:
+        selected_df = df
+    else:
+        selected_df = df.loc[(df["timestamp"] >= start_dt) & (df["timestamp"] <= end_dt)]
+
+    return selected_df.to_json(date_format="iso", orient="split")
+
+@app.callback(
+    Output("download-df-csv", "data"),
+    Output("download-status", "children"),
+    Input("download-btn", "n_clicks"),
+    State("selected-data", "data"),
+    prevent_initial_call=True
+)
+def download_csv(n_clicks, selected_data):
+    """
+    Download the parsed data as a csv
+
+    n_clicks: click instance of download-btn
+    selected_data: parsed data
+    """
+    if selected_data is None: return None
+
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
+    file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
+
+    USER_FILES_DIR = os.getcwd()
+    DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+    # TODO: Revisit this for naming convention
+    file_name = f"parsed_data_{datetime.now().strftime('%Y%m%d%H%M')}.csv"
+    file_path = os.path.join(DOWNLOAD_DIR, file_name)
+
+    return (df.to_csv(file_path, index=False), file_status)
 
 def aggregate_data(df, unit):
     """
@@ -238,23 +410,23 @@ def aggregate_data(df, unit):
 @app.callback(
         Output("content-patientinfo", "children"),
         [Input("upload-data", "filename"),
-         Input("read-data", "children")]
+         Input("raw-data", "data")]
 )
-def update_patient_info(filename, json_data):
+def update_patient_info(filename, raw_data):
     """
     Display the patient participant information as indicated on the filename
 
     filename: name of the provided csv file
-    json_data: json wrapped Arduino data
+    raw_data: full raw json input
     """
-    if json_data is None: return None
+    if raw_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(raw_data), orient="split")
     # Handle cases where input data is empty
     if pd.DataFrame(df).empty:
         parts = filename.split("_")
         patient_id = parts[0]
-        device_version = parts[1].rsplit('.', 1)[0]
+        device_version = parts[1].rsplit(".", 1)[0]
 
         return [
             html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
@@ -275,7 +447,7 @@ def update_patient_info(filename, json_data):
         try:
             parts = filename.split("_")
             patient_id = parts[0]
-            device_version = parts[1].rsplit('.', 1)[0]
+            device_version = parts[1].rsplit(".", 1)[0]
         except IndexError:
             # Filenames that are not following the convention
             return [
@@ -294,17 +466,20 @@ def update_patient_info(filename, json_data):
 # Display collected period of the data
 @app.callback(
         Output("content-collected-period", "children"),
-        [Input("read-data", "children")]
+        [Input("raw-data", "data")]
 )
-def update_collected_period(json_data):
+def update_collected_period(raw_data):
     """
-    Display collected period of the displaying data
+    Display the collected period of the full raw data
 
-    json_data: json wrapped Arduino data
+    raw_data: full raw json input
     """
-    if json_data is None: return None
+    if raw_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(raw_data), orient="split")
+    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
+        " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
+
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -312,26 +487,23 @@ def update_collected_period(json_data):
                 html.Div("No Data Available", className="flex-container")
             )
         )
-    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
-                    " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
 
-    return html.H5(collected_period, className="color-sub",
-                   style={"text-align":"left"})
+    return html.H5(collected_period, className="color-sub", style={"text-align":"left"})
 
 # Display total steps in the used data
 @app.callback(
         Output("content-total-steps", "children"),
-        [Input("read-data", "children")]
+        [Input("selected-data", "data")]
 )
-def update_total_steps(json_data):
+def update_total_steps(selected_data):
     """
     Display total steps of the displaying data
 
-    json_data: json wrapped Arduino data
+    selected_data: json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -339,7 +511,7 @@ def update_total_steps(json_data):
                 html.Div("No Data Available", className="flex-container")
             )
         )
-    
+
     total_steps = df["steps"].sum()
 
     return [
@@ -350,17 +522,17 @@ def update_total_steps(json_data):
 # Display total minutes in the used data
 @app.callback(
         Output("content-total-minutes", "children"),
-        [Input("read-data", "children")]
+        [Input("selected-data", "data")]
 )
-def update_total_minutes(json_data):
+def update_total_minutes(selected_data):
     """
     Display total minutes of the displaying data
 
-    json_data: json wrapped Arduino data
+    selected_data: json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -379,18 +551,18 @@ def update_total_minutes(json_data):
 # Display active steps in the used data
 @app.callback(
         Output("content-active-steps", "children"),
-        [Input("read-data", "children"),
+        [Input("selected-data", "data"),
          Input("active-step-slider", "value")]
 )
-def update_active_steps(json_data, active_steps_defn):
+def update_active_steps(selected_data, active_steps_defn):
     """
     Display active steps related to the displaying data
 
-    json_data: json wrapped Arduino data
+    selected_data: json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -420,7 +592,7 @@ def update_active_steps(json_data, active_steps_defn):
                 y=0.5,
                 font_size=18,
                 showarrow=False,
-                align='center'
+                align="center"
             )
         ],
         autosize=True,
@@ -432,23 +604,23 @@ def update_active_steps(json_data, active_steps_defn):
         margin=dict(l=10, r=10, t=10, b=10)
     )
 
-    return dcc.Graph(figure=fig_active_steps, style={'height': '100%', 'width': '100%'})
+    return dcc.Graph(figure=fig_active_steps, style={"height": "100%", "width": "100%"})
 
 # Display active minutes in the used data
 @app.callback(
         Output("content-active-minutes", "children"),
-        [Input("read-data", "children"),
+        [Input("selected-data", "data"),
          Input("active-step-slider", "value")]
 )
-def update_active_minutes(json_data, active_steps_defn):
+def update_active_minutes(selected_data, active_steps_defn):
     """
     Display active minutes related to the displaying data
 
-    json_data: json wrapped Arduino data
+    selected_data: json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -478,7 +650,7 @@ def update_active_minutes(json_data, active_steps_defn):
                 y=0.5,
                 font_size=18,
                 showarrow=False,
-                align='center'
+                align="center"
             )
         ],
         autosize=True,
@@ -490,24 +662,29 @@ def update_active_minutes(json_data, active_steps_defn):
         margin=dict(l=10, r=10, t=10, b=10)
     )
 
-    return dcc.Graph(figure=fig_active_mins, style={'height': '100%', 'width': '100%'})
+    return dcc.Graph(figure=fig_active_mins, style={"height": "100%", "width": "100%"})
 
 # Visualize full data
 @app.callback(
         Output("tab-content-scatter", "children"),
         [Input("graph-tab-scatter", "active_tab"),
-         Input("read-data", "children")]
+         Input("selected-data", "data")]
 )
-def update_scatter(selected_value, json_data):
+def update_scatter(selected_value, selected_data):
     """
-    Display a scatter plot based on the json_data
+    Display a scatter plot based on the selected_data
 
     selected_value = selected timeframe
-    json_data = json wrapped Arduino data
+    selected_data = json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -521,60 +698,46 @@ def update_scatter(selected_value, json_data):
         df_new = aggregate_data(df, "hour")
         unit_of_time = "hour"
 
-        # Plot the hourly aggregated data
-        plot = go.Figure()
-        plot.add_trace(go.Scatter(x=df_new["timestamp"], y = df_new["steps"], mode="lines+markers"))
-        plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
-
-        # Calculate basic information
-        max_index = df_new[["steps"]].idxmax().steps
-        max_val = df_new["steps"].iloc[max_index]
-        max_timestamp = df_new["timestamp"].iloc[max_index].strftime("%b. %d, %I:%M %p")
-        mean_val = round(df_new["steps"].mean(), 2)
-
     elif selected_value == "scatter-daily":
         # Aggregate data by day
         df_new = aggregate_data(df, "day")
         unit_of_time = "day"
 
-        # Plot the daily aggregated data
-        plot = go.Figure()
-        plot.add_trace(go.Scatter(x=df_new["timestamp"], y = df_new["steps"], mode="lines+markers"))
-        plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
-        # For Histogram View
-        # plot = px.histogram(df_day, x="timestamp", y="steps", nbins=df_day.shape[0])
-        # plot.update_layout(xaxis_title="Date",
-        #                     yaxis_title="Steps",
-        #                     bargap=0.2,
-        #                     xaxis_tickangle=45)
-
-        # Calculate basic information
-        max_index = df_new[["steps"]].idxmax().steps
-        max_val = df_new["steps"].iloc[max_index]
-        max_timestamp = df_new["timestamp"].iloc[max_index].strftime("%b. %d")
-        mean_val = round(df_new["steps"].mean(), 2)
-
     else:
         df_new = df
         unit_of_time = "5 minutes"
 
-        plot = go.Figure()
-        plot.add_trace(go.Scatter(x=df_new["timestamp"], y=df_new["steps"], mode="lines+markers"))
-        plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
+    if df_new.empty:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
-        # Calculate basic information
-        max_index = df_new[["steps"]].idxmax().steps
+    # Plot the aggregated data
+    plot = go.Figure()
+    plot.add_trace(go.Scatter(x=df_new["timestamp"], y=df_new["steps"], mode="lines+markers"))
+    plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
+
+    # Calculate basic information
+    try:
+        df_new = df_new.reset_index()
+        max_index = df_new["steps"].idxmax()
         max_val = df_new["steps"].iloc[max_index]
         max_timestamp = df_new["timestamp"].iloc[max_index].strftime("%b. %d, %I:%M %p")
         mean_val = round(df_new["steps"].mean(), 2)
+    except (IndexError, ValueError, KeyError) as e:
+        # For error catching
+        print(f"Error calculating basic information: {e}")
+        max_val, max_timestamp, mean_val = 0, "N/A", 0
 
     plot.update_layout(
-        xaxis={"range":[df_new["timestamp"].min(), df_new["timestamp"].max()]},
-        margin={"l":20, "r":20, "t":20, "b":20},
+        xaxis={"range": [df_new["timestamp"].min(), df_new["timestamp"].max()]},
+        margin={"l": 20, "r": 20, "t": 20, "b": 20},
         paper_bgcolor="white",
-        hoverlabel={"bgcolor":"white",
-                    "font_size":16,
-                    "font_family":"Roboto"}
+        hoverlabel={"bgcolor": "white",
+                    "font_size": 16,
+                    "font_family": "Roboto"}
     )
     plot.update_traces(marker_color="mediumaquamarine", line_color="lightseagreen")
 
@@ -611,17 +774,22 @@ def update_scatter(selected_value, json_data):
 # Visualize the aggregated data with sunburst graph
 @app.callback(
         Output("content-sunburst", "children"),
-        [Input("read-data", "children")]
+        [Input("selected-data", "data")]
 )
-def update_sunburst(json_data):
+def update_sunburst(selected_data):
     """
-    Display a sunburst chart based on the json_data
+    Display a sunburst chart based on the selected_data
 
-    json_data: json wrapped Arduino data
+    selected_data: json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None:
+        return dbc.Row(
+            dbc.Col(
+                html.Div("No Data Available", className="flex-container")
+            )
+        )
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
@@ -660,18 +828,18 @@ def update_sunburst(json_data):
 @app.callback(
         Output("tab-content-boxwhisker", "children"),
         [Input("graph-tab-boxwhisker", "active_tab"),
-         Input("read-data", "children")]
+         Input("selected-data", "data")]
 )
-def update_boxwhisker(selected_value, json_data):
+def update_boxwhisker(selected_value, selected_data):
     """
-    Display a box & whisker chart based on the json_data
+    Display a box & whisker chart based on the selected_data
 
     selected_value: selected timeframe to view
-    json_data: json wrapped Arduino data
+    selected_data: json wrapped Arduino data
     """
-    if json_data is None: return None
+    if selected_data is None: return None
 
-    df = pd.read_json(io.StringIO(json_data), orient="split")
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
     if pd.DataFrame(df).empty:
         return dbc.Row(
