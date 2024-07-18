@@ -251,7 +251,11 @@ def read_data(contents, filename):
         _, content_string = contents.split(",")
         decoded = base64.b64decode(content_string)
         if "csv" in filename:
-            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp","steps"])
+            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+            if df.columns[0] == "timestamp" and df.columns[1] == "steps":
+                pass  # CSV has header row
+            else:
+                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
         else:
             return None, None, None, None, None, None, None
 
