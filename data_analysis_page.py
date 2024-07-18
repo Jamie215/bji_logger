@@ -426,7 +426,7 @@ def update_patient_info(filename, raw_data):
     if pd.DataFrame(df).empty:
         parts = filename.split("_")
         patient_id = parts[0]
-        device_version = parts[1].rsplit('.', 1)[0]
+        device_version = parts[1].rsplit(".", 1)[0]
 
         return [
             html.H4("Basic Information", className="color-main", style={"margin-top":"10px", "margin-bottom":"15px"}),
@@ -447,7 +447,7 @@ def update_patient_info(filename, raw_data):
         try:
             parts = filename.split("_")
             patient_id = parts[0]
-            device_version = parts[1].rsplit('.', 1)[0]
+            device_version = parts[1].rsplit(".", 1)[0]
         except IndexError:
             # Filenames that are not following the convention
             return [
@@ -592,7 +592,7 @@ def update_active_steps(selected_data, active_steps_defn):
                 y=0.5,
                 font_size=18,
                 showarrow=False,
-                align='center'
+                align="center"
             )
         ],
         autosize=True,
@@ -604,7 +604,7 @@ def update_active_steps(selected_data, active_steps_defn):
         margin=dict(l=10, r=10, t=10, b=10)
     )
 
-    return dcc.Graph(figure=fig_active_steps, style={'height': '100%', 'width': '100%'})
+    return dcc.Graph(figure=fig_active_steps, style={"height": "100%", "width": "100%"})
 
 # Display active minutes in the used data
 @app.callback(
@@ -650,7 +650,7 @@ def update_active_minutes(selected_data, active_steps_defn):
                 y=0.5,
                 font_size=18,
                 showarrow=False,
-                align='center'
+                align="center"
             )
         ],
         autosize=True,
@@ -662,7 +662,7 @@ def update_active_minutes(selected_data, active_steps_defn):
         margin=dict(l=10, r=10, t=10, b=10)
     )
 
-    return dcc.Graph(figure=fig_active_mins, style={'height': '100%', 'width': '100%'})
+    return dcc.Graph(figure=fig_active_mins, style={"height": "100%", "width": "100%"})
 
 # Visualize full data
 @app.callback(
