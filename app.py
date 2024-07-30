@@ -39,7 +39,8 @@ def reset_heartbeat_timer():
     global heartbeat_timeout
     if heartbeat_timeout:
         heartbeat_timeout.cancel()
-    heartbeat_timeout = Timer(10, shutdown_server)
+    # Set the heartbeat timer to 300 seconds (5 min)
+    heartbeat_timeout = Timer(300, shutdown_server)
     heartbeat_timeout.start()
 
 def shutdown_server():
