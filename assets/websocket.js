@@ -15,6 +15,7 @@ function logMessage(message) {
     localStorage.setItem("logMessages", logs);
     console.log(message);
 }
+
 window.onload = function() {
     var logs = localStorage.getItem("logMessages");
     if (logs) {
@@ -34,6 +35,11 @@ window.onload = function() {
             logMessage("Sending heartbeat");
             navigator.sendBeacon("/heartbeat");
         }, 5000);
+    });
+
+    socket.on("server_shutdown_warning", function() {
+        logMessage("Received server shutdown warning");
+        window.location.href = "/timeout";
     });
 
     socket.on("disconnect", () => {

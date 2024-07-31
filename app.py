@@ -8,7 +8,7 @@ from threading import Timer
 
 from dash import Dash
 import dash_bootstrap_components as dbc
-from flask import request, jsonify
+from flask import request, jsonify, render_template_string
 from flask_socketio import SocketIO
 from engineio.async_drivers import gevent
 
@@ -40,8 +40,17 @@ def reset_heartbeat_timer():
     if heartbeat_timeout:
         heartbeat_timeout.cancel()
     # Set the heartbeat timer to 300 seconds (5 min)
-    heartbeat_timeout = Timer(300, shutdown_server)
+    heartbeat_timeout = Timer(300, notify_server_timeout)
     heartbeat_timeout.start()
+
+def notify_server_timeout():
+    """
+    Prepare to shut down as no heartbeat received
+    """
+    logging.info("No heartbeat received. Preparing to shut down server.")
+    socketio.emit("server_shutdown_warning")
+    # Give 10 seconds for the client to handle the warning
+    Timer(10, shutdown_server).start()
 
 def shutdown_server():
     """
@@ -58,6 +67,22 @@ def heartbeat():
     logging.info("Received heartbeat")
     reset_heartbeat_timer()
     return "", 204
+
+@server.route("/timeout")
+def timeout():
+    """
+    Navigate to timeout page
+    """
+    print("Session has timed out")
+    return render_template_string("""
+            <html>
+                <head><title>Server Terminated</title></head>
+                <body>
+                    <<h1>BJI IMU Application Terminated</h1>
+                    <p> The server has terminated due to inactivity. Please close this tab and relaunch the application.</p>
+                </body>
+            </html>
+        """)
 
 @server.route("/log", methods=["POST"])
 def log():
