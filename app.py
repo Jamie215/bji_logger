@@ -10,7 +10,7 @@ from dash import Dash
 import dash_bootstrap_components as dbc
 from flask import request, jsonify, render_template_string
 from flask_socketio import SocketIO
-from engineio.async_drivers import gevent
+import psutil
 
 import arduino
 
@@ -49,14 +49,26 @@ def notify_server_timeout():
     """
     logging.info("No heartbeat received. Preparing to shut down server.")
     socketio.emit("server_shutdown_warning")
-    # Give 10 seconds for the client to handle the warning
-    Timer(10, shutdown_server).start()
+    # Give 20 seconds for the client to handle the warning
+    Timer(20, shutdown_server).start()
 
 def shutdown_server():
     """
     Shut down the server when the user exists from the browser based on heartbeat timer
     """
     logging.info("No heartbeat received; shutting down server.")
+    try:
+        func = request.environ.get('werkzeug.server.shutdown')
+        func()
+    except:
+        logging.error("Werkzeug server shutdown function not available.")
+        pid = os.getpid()
+        process = psutil.Process(pid)
+        for proc in process.children(recursive=True):
+            proc.kill()
+        process.kill()
+        logging.error("Killed process.")
+    # Exit the process as a fallback
     os._exit(0)
 
 @server.route("/heartbeat", methods=["POST"])
