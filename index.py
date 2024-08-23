@@ -84,41 +84,40 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
         ]
     elif merge:
         status_msg= [
-            html.Div("Ensure that the start datetime of the second file is AFTER the end datetime of the first file.", className="mb-4"),
-            html.Div("Select the base csv file that you would like to merge.", className="mb-2"),
-            html.Div(id="upload-base-file-status", className="mb-2"),
+            html.H6("Merge 2 Datasets from the Same Participant"),
+            html.Div(["Please ensure that the start datetime of the 2nd file is ", 
+                      html.B("after "),
+                      "the end datetime of the first file."], className="mb-4"),
+            dbc.Row([
+                dbc.Col(html.H6("Base File: "), width=4),
+                dbc.Col(html.Div(id="upload-base-file-status", className="mb-2"), width=8)
+            ]),
             dcc.Upload(
                 id="base-data",
                 children=html.Div([
                     html.I(className="fas fa-upload"),
-                    " Base File:Drag and Drop or ",
-                    html.A("Select File")
+                    " Drag and Drop or ",
+                    html.A("Select Base File")
                 ]),
                 multiple=False,
-                className="upload-box"
+                className="upload-box mb-4"
             ),
-            html.Div("Select the additional csv file that you would like to merge.", className="mb-2"),
-            html.Div(id="upload-append-file-status", className="mb-2"),
+            dbc.Row([
+                dbc.Col(html.H6("2nd File: "), width=4),
+                dbc.Col(html.Div(id="upload-append-file-status", className="mb-2"), width=8)
+            ]),
             dcc.Upload(
                 id="append-data",
                 children=html.Div([
                     html.I(className="fas fa-upload"),
-                    " Second File: Drag and Drop or ",
-                    html.A("Select File")
+                    " Drag and Drop or ",
+                    html.A("Select Second File")
                 ]),
                 multiple=False,
-                className="upload-box"
+                className="upload-box mb-4"
             ),
-            dbc.Row([
-                dbc.Col(
-                    dbc.Button("Download Merged Data", id="download-data-merge-btn", className="merge-btn"),
-                    width=6
-                ),
-                dbc.Col(
-                    html.Div(id="download-merge-df-status"),
-                    width=6
-                )
-            ]),
+            dbc.Button("Download Merged Data", id="download-data-merge-btn", className="merge-btn mb-2"),
+            html.Div(id="download-merge-df-status"),
             dcc.Download(id="download-merge-df-csv"),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
@@ -551,7 +550,7 @@ def update_base_file_status(base_data, base_filename):
     # Ensure that the file is uploaded
     if base_data is None: return None
 
-    return html.Div(f"Base File: {base_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+    return html.Div(f"{base_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
 
 @app.callback(
         Output("upload-append-file-status", "children"),
@@ -569,7 +568,7 @@ def update_append_file_status(append_data, append_filename):
     # Ensure that the file is uploaded
     if append_data is None: return None
 
-    return html.Div(f"Second File: {append_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+    return html.Div(f"{append_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
 
 @app.callback(
         Output("download-data-merge-btn", "disabled"),
@@ -634,7 +633,7 @@ def merge_data(base_data, append_data, merge_btn, base_filename):
 
         file_name = f"{base_uid}_merged_{start_dt}_{end_dt}.csv"
         file_path = os.path.join(DOWNLOAD_DIR, file_name)
-        file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
+        file_status = html.Div("Download Complete", style={"color": "mediumseagreen", "margin-left": "120px"})
 
         return (merge_df.to_csv(file_path, index=False), file_status)
 
