@@ -86,6 +86,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
         status_msg= [
             html.Div("Ensure that the start datetime of the second file is AFTER the end datetime of the first file.", className="mb-4"),
             html.Div("Select the base csv file that you would like to merge.", className="mb-2"),
+            html.Div(id="upload-base-file-status", className="mb-2"),
             dcc.Upload(
                 id="base-data",
                 children=html.Div([
@@ -97,6 +98,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 className="upload-box"
             ),
             html.Div("Select the additional csv file that you would like to merge.", className="mb-2"),
+            html.Div(id="upload-append-file-status", className="mb-2"),
             dcc.Upload(
                 id="append-data",
                 children=html.Div([
@@ -107,9 +109,17 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 multiple=False,
                 className="upload-box"
             ),
-            dbc.Button("Download Merged Data", id="download-data-merge-btn"),
+            dbc.Row([
+                dbc.Col(
+                    dbc.Button("Download Merged Data", id="download-data-merge-btn", className="merge-btn"),
+                    width=6
+                ),
+                dbc.Col(
+                    html.Div(id="download-merge-df-status"),
+                    width=6
+                )
+            ]),
             dcc.Download(id="download-merge-df-csv"),
-            html.Div(id="download-merge-df-status"),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
     elif error:
@@ -324,7 +334,7 @@ def index_layout():
             ),
             dbc.Button(
                 [
-                    html.I(className="fas fa-plus-square-o page-btn-icon"),
+                    html.I(className="fas fa-plus-square page-btn-icon"),
                     "Data Merge"
                 ],
                 id="open-data-merge-modal",
@@ -526,6 +536,55 @@ def download_data(filetype, filename, download_click, last_click_time):
     return (None, {}, None)
 
 @app.callback(
+        Output("upload-base-file-status", "children"),
+        Input("base-data", "contents"),
+        State("base-data", "filename"),
+         prevent_initial_call=True
+)
+def update_base_file_status(base_data, base_filename):
+    """
+    Update the display when the base file is uploaded for merging feature
+
+    base_data: uploaded file
+    base_filename: uploaded filename
+    """
+    # Ensure that the file is uploaded
+    if base_data is None: return None
+
+    return html.Div(f"Base File: {base_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+
+@app.callback(
+        Output("upload-append-file-status", "children"),
+        Input("append-data", "contents"),
+        State("append-data", "filename"),
+         prevent_initial_call=True
+)
+def update_append_file_status(append_data, append_filename):
+    """
+    Update the display when the file is uploaded for merging feature
+
+    append_data: uploaded file
+    append_filename: uploaded filename
+    """
+    # Ensure that the file is uploaded
+    if append_data is None: return None
+
+    return html.Div(f"Second File: {append_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+
+@app.callback(
+        Output("download-data-merge-btn", "disabled"),
+        [Input("base-data", "contents"),
+         Input("append-data", "contents")]
+)
+def toggle_merge_button(base_data, append_data):
+    """
+    Enable toggle button only when both base & append data are uploaded
+    """
+    if base_data is None or append_data is None: return True
+
+    return False
+
+@app.callback(
         Output("download-merge-df-csv", "data"),
         Output("download-merge-df-status", "children"),
         [Input("base-data", "contents"),
@@ -537,6 +596,7 @@ def download_data(filetype, filename, download_click, last_click_time):
 def merge_data(base_data, append_data, merge_btn, base_filename):
     """
     Merge the two csv files with the same format.
+    Assumes that the end datetime of the base file is before the start datetime of the second file
 
     base_data: base file that will be merged
     append_data: additional file that will be appended to the base file
@@ -555,27 +615,30 @@ def merge_data(base_data, append_data, merge_btn, base_filename):
             df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
         return df
 
-    if merge_btn:
+    if merge_btn and base_data and append_data:
         base_df = read_csv(base_data)
         append_df = read_csv(append_data)
 
         # Merge the two dataset
         merge_df = pd.concat([base_df, append_df], ignore_index=True)
+        merge_df["timestamp"] = pd.to_datetime(merge_df["timestamp"])
         
-        start_dt = merge_df["timestamp"].min()
-        end_dt = merge_df["timestamp"].min()
+        start_dt = merge_df["timestamp"].min().strftime("%Y-%m-%d")
+        end_dt = merge_df["timestamp"].max().strftime("%Y-%m-%d")
 
         # Prepare dataset download
         USER_FILES_DIR = os.getcwd()
         DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
         os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-        base_uid = base_filename.split("_")
+        base_uid = base_filename.split("_")[0]
 
-        file_name = f"{base_uid}_merged_{start_dt}_{end_dt}"
+        file_name = f"{base_uid}_merged_{start_dt}_{end_dt}.csv"
         file_path = os.path.join(DOWNLOAD_DIR, file_name)
         file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
 
         return (merge_df.to_csv(file_path, index=False), file_status)
+
+    return None, None
 
 @app.callback(
     Output("action-modal-open-state", "data", allow_duplicate=True),
