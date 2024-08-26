@@ -615,27 +615,33 @@ def merge_data(base_data, append_data, merge_btn, base_filename):
         return df
 
     if merge_btn and base_data and append_data:
-        base_df = read_csv(base_data)
-        append_df = read_csv(append_data)
+        try:
+            base_df = read_csv(base_data)
+            append_df = read_csv(append_data)
 
-        # Merge the two dataset
-        merge_df = pd.concat([base_df, append_df], ignore_index=True)
-        merge_df["timestamp"] = pd.to_datetime(merge_df["timestamp"])
-        
-        start_dt = merge_df["timestamp"].min().strftime("%Y-%m-%d")
-        end_dt = merge_df["timestamp"].max().strftime("%Y-%m-%d")
+            # Merge the two dataset
+            merge_df = pd.concat([base_df, append_df], ignore_index=True)
+            merge_df["timestamp"] = pd.to_datetime(merge_df["timestamp"])
+            
+            start_dt = merge_df["timestamp"].min().strftime("%Y-%m-%d")
+            end_dt = merge_df["timestamp"].max().strftime("%Y-%m-%d")
 
-        # Prepare dataset download
-        USER_FILES_DIR = os.getcwd()
-        DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
-        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-        base_uid = base_filename.split("_")[0]
+            # Prepare dataset download
+            USER_FILES_DIR = os.getcwd()
+            DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
+            os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+            base_uid = base_filename.split("_")[0]
 
-        file_name = f"{base_uid}_merged_{start_dt}_{end_dt}.csv"
-        file_path = os.path.join(DOWNLOAD_DIR, file_name)
-        file_status = html.Div("Download Complete", style={"color": "mediumseagreen", "margin-left": "120px"})
+            file_name = f"{base_uid}_merged_{start_dt}_{end_dt}.csv"
+            file_path = os.path.join(DOWNLOAD_DIR, file_name)
 
-        return (merge_df.to_csv(file_path, index=False), file_status)
+        # Add error message when failure to download.
+        except Exception as e:
+            print(f"Following exception triggered: {e}")
+
+        else:
+            file_status = html.Div("Download Complete", style={"color": "mediumseagreen", "margin-left": "150px"})
+            return (merge_df.to_csv(file_path, index=False), file_status)
 
     return None, None
 
