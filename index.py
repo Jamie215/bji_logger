@@ -577,7 +577,7 @@ def update_append_file_status(append_data, append_filename):
 )
 def toggle_merge_button(base_data, append_data):
     """
-    Enable toggle button only when both base & append data are uploaded
+    Enable merge button only when both base & append data are uploaded
     """
     if base_data is None or append_data is None: return True
 
