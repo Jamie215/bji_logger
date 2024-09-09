@@ -343,33 +343,52 @@ def update_selected_data(start_date, end_date, start_hour, start_minute, end_hou
     return selected_df.to_json(date_format="iso", orient="split")
 
 @app.callback(
+        Output("download-btn", "disabled"),
+        Input("upload-data", "contents")
+)
+def toggle_download_button(upload_data):
+    """
+    Enable download button only when upload data is available
+    """
+    if upload_data is None: return True
+
+    return False
+
+@app.callback(
     Output("download-df-csv", "data"),
     Output("download-status", "children"),
-    Input("download-btn", "n_clicks"),
+    [Input("upload-data", "filename"),
+     Input("download-btn", "n_clicks")],
     State("selected-data", "data"),
     prevent_initial_call=True
 )
-def download_csv(n_clicks, selected_data):
+def download_csv(filename, n_clicks, selected_data):
     """
     Download the parsed data as a csv
 
+    filename: original filename
     n_clicks: click instance of download-btn
     selected_data: parsed data
     """
     if selected_data is None: return None
 
-    df = pd.read_json(io.StringIO(selected_data), orient="split")
-    file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
+    if n_clicks and filename:
+        try:
+            df = pd.read_json(io.StringIO(selected_data), orient="split")
+            file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
 
-    USER_FILES_DIR = os.getcwd()
-    DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+            USER_FILES_DIR = os.getcwd()
+            DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
+            os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+            base_uid = filename.split("_")[0]
+        except Exception as e:
+            print(f"Following exception triggered: {e}")
+        else:
+            file_name = f"{base_uid}_parsed_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+            file_path = os.path.join(DOWNLOAD_DIR, file_name)
 
-    # TODO: Revisit this for naming convention
-    file_name = f"parsed_data_{datetime.now().strftime('%Y%m%d%H%M')}.csv"
-    file_path = os.path.join(DOWNLOAD_DIR, file_name)
-
-    return (df.to_csv(file_path, index=False), file_status)
+            return (df.to_csv(file_path, index=False), file_status)
+    return None, None
 
 def aggregate_data(df, unit):
     """

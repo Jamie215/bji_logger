@@ -144,7 +144,7 @@ body {
     color: white;
 }
 
-/* Download from "Data Download" */
+/* Button from "Data Download" */
 .download-btn {
     display: inline-block;
     margin: 10px;
@@ -154,7 +154,16 @@ body {
     color: white;
 }
 
-.initialize-btn:hover, .download-btn:hover {
+/* Button from "Merge Data" */
+.merge-btn {
+    display: inline-block;
+    margin-left: 120px;
+    background-color: steelblue;
+    border-color: steelblue;
+    color: white
+}
+
+.initialize-btn:hover, .download-btn:hover, .merge-btn:hover{
     background-color: midnightblue;
 }
 

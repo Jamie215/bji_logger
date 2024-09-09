@@ -6,12 +6,15 @@ from threading import Timer
 import datetime
 import json
 import os
+import base64
+import io
 
 import pytz
 from dash import dcc, html, Input, Output, State, callback_context
 import dash
 import dash_bootstrap_components as dbc
 import requests
+import pandas as pd
 
 from app import app, socketio
 from data_analysis_page import layout as data_analysis_layout
@@ -20,13 +23,14 @@ import arduino
 # Store modal history for "previous" navigation
 modal_history = []
 
-def set_modal_content(initialize=False, selected_dt=None, download=False, error=None, footer_view="None"):
+def set_modal_content(initialize=False, selected_dt=None, download=False, merge=False, error=None, footer_view="None"):
     """
     Set content for modal body and footer
 
     initialize: set the modal body to be the initialization view of initialization flow
     selected_dt: set the modal body to be the confirmation view of initialization flow
-    download: set the modal body view to be the download flow 
+    download: set the modal body view to be the download flow
+    merge: set the modal body view to be the data merge flow
     error: set the modal body view to be initialization fail view with the error
     footer_view: set the modal footer view (Type: None, Modal Start, Initialize)
     """
@@ -76,6 +80,45 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
             html.Div("Enter your filename."),
             dbc.Input(id="download-filename", placeholder="Subject(UID)_(Quarter).(DeviceIteration)", value="Subject_", required=True, className="mb-2"),
             html.Div(id="download-file-status"),
+            dbc.Button("Close", id="close-modal", style={"display":"None"})
+        ]
+    elif merge:
+        status_msg= [
+            html.H6("Merge 2 Datasets from the Same Participant"),
+            html.Div(["Please ensure that the start datetime of the 2nd file is ", 
+                      html.B("after "),
+                      "the end datetime of the first file."], className="mb-4"),
+            dbc.Row([
+                dbc.Col(html.H6("Base File: "), width=4),
+                dbc.Col(html.Div(id="upload-base-file-status", className="mb-2"), width=8)
+            ]),
+            dcc.Upload(
+                id="base-data",
+                children=html.Div([
+                    html.I(className="fas fa-upload"),
+                    " Drag and Drop or ",
+                    html.A("Select Base File")
+                ]),
+                multiple=False,
+                className="upload-box mb-4"
+            ),
+            dbc.Row([
+                dbc.Col(html.H6("2nd File: "), width=4),
+                dbc.Col(html.Div(id="upload-append-file-status", className="mb-2"), width=8)
+            ]),
+            dcc.Upload(
+                id="append-data",
+                children=html.Div([
+                    html.I(className="fas fa-upload"),
+                    " Drag and Drop or ",
+                    html.A("Select Second File")
+                ]),
+                multiple=False,
+                className="upload-box mb-4"
+            ),
+            dbc.Button("Download Merged Data", id="download-data-merge-btn", className="merge-btn mb-2"),
+            html.Div(id="download-merge-df-status"),
+            dcc.Download(id="download-merge-df-csv"),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
     elif error:
@@ -235,7 +278,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, error=
                     [
                         dbc.Button("Previous", id="previous-modal", outline=True, color="secondary", style={"padding":"10px", "margin-left":"15px", "margin-right":"10px"}),
                         dbc.Button("Connect", id="connect-modal", style={"display":"none"}),
-                        dbc.Button("Initialize", id="initialize-btn", color="success", style={"padding":"10px", 'color': 'White'}),
+                        dbc.Button("Initialize", id="initialize-btn", color="success", style={"padding":"10px", "color": "White"}),
                         dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
                     ],
                     width=6,
@@ -257,6 +300,7 @@ def index_layout():
         1. Initialize Device
         2. Data Download
         3. Data Analysis
+        4. Data Merge
     """
     return html.Div(
         [
@@ -286,6 +330,15 @@ def index_layout():
                 href="/data-analysis",
                 outline=True,
                 className="m-4 page-btn",
+            ),
+            dbc.Button(
+                [
+                    html.I(className="fas fa-plus-square page-btn-icon"),
+                    "Data Merge"
+                ],
+                id="open-data-merge-modal",
+                outline=True,
+                className="m-4 page-btn"
             ),
             dbc.Modal(
                 [dbc.ModalHeader("Action")] + set_modal_content(),
@@ -322,6 +375,7 @@ app.layout = html.Div([
         [Input("open-initialize-modal", "n_clicks"),
          Input("re-initialize-btn", "n_clicks"),
          Input("open-download-modal", "n_clicks"),
+         Input("open-data-merge-modal", "n_clicks"),
          Input("previous-modal", "n_clicks"),
          Input("connect-modal", "n_clicks"),
          Input("initialize-btn", "n_clicks"),
@@ -333,13 +387,14 @@ app.layout = html.Div([
          State("hour", "value"),
          State("minute", "value")],
           prevent_initial_call=True)
-def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, connect_click, init_btn_click, close_click, is_open, curr_children, json_data, date, hour, minute):
+def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previous_click, connect_click, init_btn_click, close_click, is_open, curr_children, json_data, date, hour, minute):
     """
     Set the appropriate callback based on the user action related to the modal
 
     init_click: "Initialize Device" button click instance from the index page
     re_init_click: "Re-Initialize" button click instance
     dl_click: "Data Download" button click instance from the index page
+    merge_click: "Data Merge" button click instance from the index page
     previous_click: "Previous" button click instance
     connect_click: "Connect" button click instance
     init_btn_click: "Initialize" button click instance
@@ -355,7 +410,7 @@ def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, con
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
     # Action Type 1: "Initialize" button triggered from the index page
-    if any(x is not None for x in [init_click, re_init_click, dl_click, previous_click, connect_click, init_btn_click, close_click]):
+    if any(x is not None for x in [init_click, re_init_click, dl_click, merge_click, previous_click, connect_click, init_btn_click, close_click]):
         try:
             if triggered_id in ["open-initialize-modal","re-initialize-btn"]:
                 modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
@@ -366,7 +421,12 @@ def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, con
                 modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
                 return True, modal_content, json.dumps({"is_open": True})
 
-            # Action Type 3: "Previous" button triggered from the modal
+            # Action Type 3: "Data Merge" button triggered from the index page
+            if triggered_id == "open-data-merge-modal":
+                modal_content = [dbc.ModalHeader("Merge Data", className="modal-header-text")] + set_modal_content(merge=True)
+                return True, modal_content, json.dumps({"is_open": True})
+
+            # Action Type 4: "Previous" button triggered from the modal
             if triggered_id == "previous-modal":
                 # Disconnect the serial connection if one exists
                 if arduino.arduino_serial:
@@ -376,19 +436,19 @@ def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, con
                 prev_content = modal_history.pop()
                 return True, prev_content, json.dumps({"is_open": True})
 
-            # Action Type 4: "Connect" button triggered from the modal
+            # Action Type 5: "Connect" button triggered from the modal
             if triggered_id == "connect-modal":
                 # Update the past modal content as we prepare new modal view
                 modal_history.append(curr_children)
                 arduino_status = arduino.get_device_status()
 
                 if arduino.arduino_serial:
-                    # Action Type 4-1: The "Connect" button was for "Initialization"
+                    # Action Type 5-1: The "Connect" button was for "Initialization"
                     if "Initialize Arduino" in str(curr_children):
                         if arduino_status in [b"FIRST_POWERON", b"DATA_FILE_EXISTS"]:
                             updated_children = [curr_children[0]] + set_modal_content(initialize=True, footer_view="Initialize")
                             return True, updated_children, json.dumps({"is_open": True})
-                    # Action Type 4-2: The "Connect" button was for "Download"
+                    # Action Type 5-2: The "Connect" button was for "Download"
                     elif "Download Data" in str(curr_children):
                         if arduino_status == b"FIRST_POWERON":
                             updated_children = [
@@ -401,7 +461,7 @@ def toggle_action_modal(init_click, re_init_click, dl_click, previous_click, con
                             updated_children = [curr_children[0]] + set_modal_content(download=True)
                             return True, updated_children, json.dumps({"is_open": True})
 
-            # Action Type 5: "Initialize" button triggered from the button
+            # Action Type 6: "Initialize" button triggered from the button
             if triggered_id == "initialize-btn":
                 # Update the past modal content as we prepare new modal view
                 modal_history.append(curr_children)
@@ -475,6 +535,117 @@ def download_data(filetype, filename, download_click, last_click_time):
     return (None, {}, None)
 
 @app.callback(
+        Output("upload-base-file-status", "children"),
+        Input("base-data", "contents"),
+        State("base-data", "filename"),
+         prevent_initial_call=True
+)
+def update_base_file_status(base_data, base_filename):
+    """
+    Update the display when the base file is uploaded for merging feature
+
+    base_data: uploaded file
+    base_filename: uploaded filename
+    """
+    # Ensure that the file is uploaded
+    if base_data is None: return None
+
+    return html.Div(f"{base_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+
+@app.callback(
+        Output("upload-append-file-status", "children"),
+        Input("append-data", "contents"),
+        State("append-data", "filename"),
+         prevent_initial_call=True
+)
+def update_append_file_status(append_data, append_filename):
+    """
+    Update the display when the file is uploaded for merging feature
+
+    append_data: uploaded file
+    append_filename: uploaded filename
+    """
+    # Ensure that the file is uploaded
+    if append_data is None: return None
+
+    return html.Div(f"{append_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+
+@app.callback(
+        Output("download-data-merge-btn", "disabled"),
+        [Input("base-data", "contents"),
+         Input("append-data", "contents")]
+)
+def toggle_merge_button(base_data, append_data):
+    """
+    Enable merge button only when both base & append data are uploaded
+    """
+    if base_data is None or append_data is None: return True
+
+    return False
+
+@app.callback(
+        Output("download-merge-df-csv", "data"),
+        Output("download-merge-df-status", "children"),
+        [Input("base-data", "contents"),
+         Input("append-data", "contents"),
+         Input("download-data-merge-btn", "n_clicks")],
+        [State("base-data", "filename")],
+        prevent_initial_call=True
+)
+def merge_data(base_data, append_data, merge_btn, base_filename):
+    """
+    Merge the two csv files with the same format.
+    Assumes that the end datetime of the base file is before the start datetime of the second file
+
+    base_data: base file that will be merged
+    append_data: additional file that will be appended to the base file
+    merge_btn: name of the merged file
+    """
+    # Ensure that both files are read
+    if base_data is None or append_data is None: return None, None
+
+    def read_csv(data):
+        _, content_string = data.split(",")
+        decoded = base64.b64decode(content_string)
+        df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        if df.columns[0] == "timestamp" and df.columns[1] == "steps":
+            pass  # CSV has header row
+        else:
+            df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
+        return df
+
+    if merge_btn and base_data and append_data:
+        try:
+            base_df = read_csv(base_data)
+            append_df = read_csv(append_data)
+
+            # Merge the two dataset
+            merge_df = pd.concat([base_df, append_df], ignore_index=True)
+            merge_df["timestamp"] = pd.to_datetime(merge_df["timestamp"])
+            
+            start_dt = merge_df["timestamp"].min().strftime("%Y-%m-%d")
+            end_dt = merge_df["timestamp"].max().strftime("%Y-%m-%d")
+
+            # Prepare dataset download
+            USER_FILES_DIR = os.getcwd()
+            DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
+            os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+            base_uid = base_filename.split("_")[0]
+
+            file_name = f"{base_uid}_merged_{start_dt}_{end_dt}.csv"
+            file_path = os.path.join(DOWNLOAD_DIR, file_name)
+
+        # Add error message when failure to download.
+        except Exception as e:
+            print(f"Following exception triggered: {e}")
+
+        else:
+            file_status = html.Div("Download Complete", style={"color": "mediumseagreen", "margin-left": "150px"})
+            return (merge_df.to_csv(file_path, index=False), file_status)
+
+    return None, None
+
+@app.callback(
     Output("action-modal-open-state", "data", allow_duplicate=True),
     [Input("action-modal", "is_open")],
     prevent_initial_call=True
@@ -515,6 +686,7 @@ def display_page(pathname):
     """
     if pathname == "/data-analysis":
         return data_analysis_layout
+    
     return index_layout()
 
 def open_browser(port):
