@@ -1,6 +1,10 @@
 """
 Import Libraries
 """
+# Ensure that the standard Python libraries are compatible with gevent
+from gevent import monkey
+monkey.patch_all()
+
 import atexit
 import os
 import logging
