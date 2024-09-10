@@ -79,7 +79,13 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
             ),
             html.Div("Enter your filename."),
             dbc.Input(id="download-filename", placeholder="Subject(UID)_(Quarter).(DeviceIteration)", value="Subject_", required=True, className="mb-2"),
-            html.Div(id="download-file-status"),
+            dcc.Loading(
+                id="loading-download",
+                type="circle",
+                children=[
+                    html.Div(id="download-file-status")
+                ]
+            ),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
     elif merge:
@@ -117,8 +123,14 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 className="upload-box mb-4"
             ),
             dbc.Button("Download Merged Data", id="download-data-merge-btn", className="merge-btn mb-2"),
-            html.Div(id="download-merge-df-status"),
-            dcc.Download(id="download-merge-df-csv"),
+            dcc.Loading(
+                id="loading-download",
+                type="circle",
+                children=[
+                    html.Div(id="download-merge-df-status"),
+                    dcc.Download(id="download-merge-df-csv"),
+                ]
+            ),
             dbc.Button("Close", id="close-modal", style={"display":"None"})
         ]
     elif error:
@@ -212,6 +224,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                         [html.I(className="fas fa-file-download mr-2"), " Download Data"],
                         id="download-btn",
                         className="ms-2 download-btn",
+                        disabled=False,
                         style={"display": "none"} if not download else {}
                 )
             ],
@@ -492,10 +505,22 @@ def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previo
 
     return is_open, dash.no_update, json_data
 
+# Callback to disable the button when clicked
+@app.callback(
+    Output("download-btn", "disabled", allow_duplicate=True),
+    [Input("download-btn", "n_clicks")],
+    prevent_initial_call=True
+)
+def disable_button(download_click):
+    if download_click:
+        return True  # Disable button immediately when clicked
+    return False
+
 @app.callback(
         [Output("download-data", "data"),
          Output("download-filename", "style"),
-         Output("download-file-status", "children")],
+         Output("download-file-status", "children"),
+         Output("download-btn", "disabled", allow_duplicate=True)],
         [Input("download-filetype", "value"),
          Input("download-filename", "value"),
          Input("download-btn", "n_clicks")],
@@ -519,7 +544,10 @@ def download_data(filetype, filename, download_click, last_click_time):
     if ctx.triggered and ctx.triggered[0]['prop_id'].endswith('.n_clicks'):
         if not filename or filename.strip() == "":
             file_status = html.Div("Please enter a filename.", style={"color": "indianred"})
-            return (None, {"bordercolor": "red", "boxShadow": "0 0 0 0.25rem rgb(255 0 0 / 25%)"}, file_status)
+            return (None, {"bordercolor": "red", "boxShadow": "0 0 0 0.25rem rgb(255 0 0 / 25%)"}, file_status, False)
+
+        # Disable the download button while downloading (already done by first callback)
+        button_disabled = True
 
         if filetype == 1:
             filename = f"{filename}.raw"
@@ -529,10 +557,13 @@ def download_data(filetype, filename, download_click, last_click_time):
             get_readable = True
 
         file_path = os.path.join(DOWNLOAD_DIR, filename)
-        file_status = html.Div("Download Complete", style={"color": "mediumseagreen"})
-        return (arduino.download_file(file_path, get_readable), {}, file_status)
+        file_content = arduino.download_file(file_path, get_readable)
 
-    return (None, {}, None)
+        # Update the file download status
+        file_status = html.Div("Download Complete", style={"color": "mediumseagreen"})
+        return (file_content, {}, file_status, False)
+
+    return (None, {}, None, False)
 
 @app.callback(
         Output("upload-base-file-status", "children"),

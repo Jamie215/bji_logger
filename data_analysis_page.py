@@ -99,8 +99,14 @@ layout = html.Div([
                                 dbc.Col(
                                     [
                                         dbc.Button("Download", id="download-btn"),
-                                        dcc.Download(id="download-df-csv"),
-                                        html.Div(id="download-status")
+                                        dcc.Loading(
+                                            id="loading-download",
+                                            type="circle",
+                                            children=[
+                                                dcc.Download(id="download-df-csv"),
+                                                html.Div(id="download-status")
+                                            ]
+                                        ),
                                     ],
                                 )
                             ],
