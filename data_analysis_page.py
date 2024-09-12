@@ -280,33 +280,30 @@ def read_data(contents, filename):
     return (df.to_json(date_format="iso", orient="split"), start_date, end_date, 
             start_hour, start_min, end_hour, end_min)
 
-def generate_full_time_options():
-    hours = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in range(24)]
-    minutes = [{"label": str(minute).zfill(2), "value": str(minute).zfill(2)} for minute in range(0, 60, 5)]
-    return hours, minutes
-
 @app.callback(
     Output("start-hour-dropdown", "options"),
     Output("end-hour-dropdown", "options"),
     [Input("date-picker-range", "start_date"),
-     Input("date-picker-range", "end_date")],
-    [State("raw-data", "data")]
+     Input("date-picker-range", "end_date")]
 )
-def update_hour_options(start_date, end_date, raw_data):
-    hours, _ = generate_full_time_options()
+def update_hour_options(start_date, end_date):
+    """
+    Callback for the hour option of the date parsing feature
+    """
+    hours = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in range(24)]
     return hours, hours
 
 @app.callback(
     Output("start-minute-dropdown", "options"),
     Output("end-minute-dropdown", "options"),
     [Input("date-picker-range", "start_date"),
-     Input("date-picker-range", "end_date"),
-     Input("start-hour-dropdown", "value"),
-     Input("end-hour-dropdown", "value")],
-     [State("raw-data", "data")]
+     Input("date-picker-range", "end_date")]
 )
-def update_minute_options(start_date, end_date, start_hour, end_hour, raw_data):
-    _, minutes = generate_full_time_options()
+def update_minute_options(start_date, end_date):
+    """
+    Callback for the minute option of the date parsing feature
+    """
+    minutes = [{"label": str(minute).zfill(2), "value": str(minute).zfill(2)} for minute in range(0, 60, 5)]
     return minutes, minutes
 
 @app.callback(
