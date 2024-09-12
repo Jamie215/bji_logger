@@ -95,8 +95,8 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                       html.B("after "),
                       "the end datetime of the first file."], className="mb-4"),
             dbc.Row([
-                dbc.Col(html.H6("Base File: "), width=4),
-                dbc.Col(html.Div(id="upload-base-file-status", className="mb-2"), width=8)
+                dbc.Col(html.H6("Base File: "), width=3),
+                dbc.Col(html.Div(id="upload-base-file-status", className="mb-2"), width=9)
             ]),
             dcc.Upload(
                 id="base-data",
@@ -109,8 +109,8 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 className="upload-box mb-4"
             ),
             dbc.Row([
-                dbc.Col(html.H6("2nd File: "), width=4),
-                dbc.Col(html.Div(id="upload-append-file-status", className="mb-2"), width=8)
+                dbc.Col(html.H6("2nd File: "), width=3),
+                dbc.Col(html.Div(id="upload-append-file-status", className="mb-2"), width=9)
             ]),
             dcc.Upload(
                 id="append-data",
@@ -505,13 +505,17 @@ def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previo
 
     return is_open, dash.no_update, json_data
 
-# Callback to disable the button when clicked
 @app.callback(
     Output("download-btn", "disabled", allow_duplicate=True),
     [Input("download-btn", "n_clicks")],
     prevent_initial_call=True
 )
 def disable_button(download_click):
+    """
+    Callback to disable the download-btn when clicked
+
+    download_click: "Download" button click instance
+    """
     if download_click:
         return True  # Disable button immediately when clicked
     return False
@@ -545,9 +549,6 @@ def download_data(filetype, filename, download_click, last_click_time):
         if not filename or filename.strip() == "":
             file_status = html.Div("Please enter a filename.", style={"color": "indianred"})
             return (None, {"bordercolor": "red", "boxShadow": "0 0 0 0.25rem rgb(255 0 0 / 25%)"}, file_status, False)
-
-        # Disable the download button while downloading (already done by first callback)
-        button_disabled = True
 
         if filetype == 1:
             filename = f"{filename}.raw"
