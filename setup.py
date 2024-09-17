@@ -15,7 +15,7 @@ if sys.platform == "win32":
 
 executables = [
     Executable(
-        "index.py",
+        "app.py",
         base=base,
         icon="BJI_Logger_icon.ico"
     )
@@ -23,7 +23,7 @@ executables = [
 
 setup(
     name="BJI_Logger",
-    version="2.7.0",
+    version="2.7.1",
     description="BJI CORK Project Data Application",
     options={"build_exe": build_exe_options},
     executables=executables

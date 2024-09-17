@@ -8,31 +8,48 @@ monkey.patch_all()
 import atexit
 import os
 import logging
+import json
 from threading import Timer
+import webbrowser
 
-from dash import Dash
-import dash_bootstrap_components as dbc
+from dash import html, dcc, Input, Output
 from flask import request, jsonify, render_template_string
-from flask_socketio import SocketIO
 import psutil
+import dash_bootstrap_components as dbc
+import requests
 
+from app_instance import app, socketio, server
+from pages.data_analysis_page import data_analysis_layout
+from pages.index_page import index_layout, register_index_callbacks
 import arduino
 
-# Use external style sheets
-external_stylesheets = [
-    "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
-    dbc.themes.LITERA,
-    dbc.icons.FONT_AWESOME,
-    "assets/style.css"
-]
+# Register all index page callbacks before app runs
+register_index_callbacks()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+# Default page layout
+app.layout = html.Div([
+    dcc.Location(id="url", refresh=False),
+    dbc.NavbarSimple(
+        brand="BJI IMU APPLICATION",
+        brand_href="/",
+        color="royalblue",
+        sticky="top",
+        dark=True,
+        fluid=True,
+        style={"cursor":"pointer"}
+    ),
+    dcc.Store(id="action-modal-open-state", data=json.dumps({"is_open": False})),
+    html.Div(id="action-modal-status"),
+    html.Div(id="page-content")
+])
 
-# Initialize the app
-app = Dash(__name__, external_stylesheets=external_stylesheets, assets_folder=os.getcwd()+'/assets/', suppress_callback_exceptions=True)
-server = app.server
-socketio = SocketIO(server, async_mode="gevent")
+# Route to load the appropriate page layout
+@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
+def display_page(pathname):
+    if pathname == "/data-analysis":
+        return data_analysis_layout
+    else:
+        return index_layout()
 
 heartbeat_timeout = None
 
@@ -120,6 +137,26 @@ def clean_up():
 
 atexit.register(clean_up)
 
+def open_browser(port):
+    """
+    Open the web browser automatically when the application is launched
+    """
+    webbrowser.open_new(f"http://127.0.0.1:{port}/")
+
+def shutdown(port):
+    """
+    Shutdown the Flask server when the application is closed
+    """
+    try:
+        requests.post(f"http://127.0.0.1:{port}/shutdown")
+    except requests.exceptions.RequestException:
+        pass
+
 if __name__ == "__main__":
     reset_heartbeat_timer()
-    socketio.run(server, port=8050, allow_unsafe_werkzeug=True)
+    port = 8050
+    Timer(1, open_browser, args=[port]).start()
+    try:
+        socketio.run(server, port=8050, allow_unsafe_werkzeug=True, debug=False)
+    finally:
+        shutdown(port)
