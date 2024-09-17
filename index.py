@@ -20,9 +20,6 @@ from app import app, socketio
 from data_analysis_page import layout as data_analysis_layout
 import arduino
 
-# Store modal history for "previous" navigation
-modal_history = []
-
 def set_modal_content(initialize=False, selected_dt=None, download=False, merge=False, error=None, footer_view="None"):
     """
     Set content for modal body and footer
@@ -39,7 +36,6 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
     if initialize:
         status_msg = [
             html.Div("Please set the date and time for device initialization.", className="mb-2"),
-            dbc.Button("Close", id="close-modal", style={"display":"None"}),
         ]
     elif selected_dt:
         status_msg = [
@@ -57,10 +53,8 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                     " restart the initializing process."
                 ])
             ),
-            html.Div(
-                [
-                    dbc.Button("Re-Initialize", id="re-initialize-btn", outline=True, color="secondary"),
-                    dbc.Button("Close", id="close-modal", className="initialize-btn", style={"margin-left": "10px"}),
+            html.Div([
+                    dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn")
                 ],
                 style={"text-align":"center"}
             )
@@ -85,13 +79,12 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 children=[
                     html.Div(id="download-file-status")
                 ]
-            ),
-            dbc.Button("Close", id="close-modal", style={"display":"None"})
+            )
         ]
     elif merge:
         status_msg= [
             html.H6("Merge 2 Datasets from the Same Participant"),
-            html.Div(["Please ensure that the start datetime of the 2nd file is ", 
+            html.Div(["Please ensure that the start datetime of the 2nd file is ",
                       html.B("after "),
                       "the end datetime of the first file."], className="mb-4"),
             dbc.Row([
@@ -130,36 +123,30 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                     html.Div(id="download-merge-df-status"),
                     dcc.Download(id="download-merge-df-csv"),
                 ]
-            ),
-            dbc.Button("Close", id="close-modal", style={"display":"None"})
+            )
         ]
     elif error:
         status_msg = [
             html.I(className="fas fa-times-circle initiate-fail"),
             dbc.Row(
                 html.Div([
-                        "The initialization has failed due to an error. ",
+                        html.Div("Arduino Connection Failed.", style={"text-align": "center", "color": "indianred"}),
                         html.Br(),
-                        html.Br(),
-                        " If you want to continue initializing the device,",
-                        " check the connection of the device and",
-                        " restart the initializing process."
+                        "Please ensure that the device is ",
+                        html.B("powered "),
+                        "and ",
+                        html.B("properly connected!")
                 ])
             ),
-            dbc.Col(
-                [
-                    dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn"),
-                    dbc.Button("Close", id="close-modal", outline=True, color="secondary", style={"margin-left": "10px"}),
+            dbc.Col([
+                    dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn")
                 ],
                 style={"text-align":"center"},
                 width=12
             )
         ]
     else:
-        status_msg = [
-            html.Div("Please connect Arduino to computer.", className="mb-2"),
-            dbc.Button("Close", id="close-modal", style={"display":"None"})
-        ]
+        status_msg = [html.Div("Please connect Arduino to computer.", className="mb-2")]
 
     curr_date = datetime.datetime.now()
     initialize_view = [
@@ -237,7 +224,6 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
     if footer_view == "None":
         modal_footer = dbc.ModalFooter(
             [
-                dbc.Button("Previous", id="previous-modal", style={"display":"none"}),
                 dbc.Button("Connect", id="connect-modal", style={"display":"none"}),
                 dbc.Button("Initialize", id="initialize-btn", style={"display":"none"}),
                 dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
@@ -262,7 +248,6 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 ),
                 dbc.Col(
                     [
-                        dbc.Button("Previous", id="previous-modal", style={"display":"none"}),
                         dbc.Button("Connect", id="connect-modal", color="success", className="ms-auto connect-btn"),
                         dbc.Button("Initialize", id="initialize-btn", style={"display":"none"}),
                         dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
@@ -284,21 +269,19 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                     html.Div("Exiting this pop-up will terminate the Arduino connection process!",
                              className="disclaimer-msg"
                     ),
-                    width=5,
+                    width=8,
                     align="center",
                 ),
                 dbc.Col(
                     [
-                        dbc.Button("Previous", id="previous-modal", outline=True, color="secondary", style={"padding":"10px", "margin-left":"15px", "margin-right":"10px"}),
                         dbc.Button("Connect", id="connect-modal", style={"display":"none"}),
                         dbc.Button("Initialize", id="initialize-btn", color="success", style={"padding":"10px", "color": "White"}),
                         dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
                     ],
-                    width=6,
+                    width=3,
                     align="center"
                 )
-            ]),
-            style={"height": "90px"}
+            ])
         )
 
     return  [
@@ -308,7 +291,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
 
 def index_layout():
     """
-    Set index page layout, displaying three features
+    Return index page layout, displaying the following features
     
         1. Initialize Device
         2. Data Download
@@ -346,7 +329,7 @@ def index_layout():
             ),
             dbc.Button(
                 [
-                    html.I(className="fas fa-plus-square page-btn-icon"),
+                    html.I(className="fas fa-code-fork page-btn-icon"),
                     "Data Merge"
                 ],
                 id="open-data-merge-modal",
@@ -386,13 +369,11 @@ app.layout = html.Div([
          Output("action-modal", "children"),
          Output("action-modal-open-state", "data")],
         [Input("open-initialize-modal", "n_clicks"),
-         Input("re-initialize-btn", "n_clicks"),
          Input("open-download-modal", "n_clicks"),
          Input("open-data-merge-modal", "n_clicks"),
-         Input("previous-modal", "n_clicks"),
+         Input("re-initialize-btn", "n_clicks"),
          Input("connect-modal", "n_clicks"),
-         Input("initialize-btn", "n_clicks"),
-         Input("close-modal", "n_clicks")],
+         Input("initialize-btn", "n_clicks")],
         [State("action-modal", "is_open"),
          State("action-modal", "children"),
          State("action-modal-open-state", "data"),
@@ -400,20 +381,18 @@ app.layout = html.Div([
          State("hour", "value"),
          State("minute", "value")],
           prevent_initial_call=True)
-def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previous_click, connect_click, init_btn_click, close_click, is_open, curr_children, json_data, date, hour, minute):
+def toggle_action_modal(init_click, dl_click, merge_click, re_init_click, connect_click, init_btn_click, is_open, curr_children, json_data, date, hour, minute):
     """
     Set the appropriate callback based on the user action related to the modal
 
-    init_click: "Initialize Device" button click instance from the index page
+    init_click: "Initialize Device" button click instance (index page)
+    dl_click: "Data Download" button click instance (index page)
+    merge_click: "Data Merge" button click instance (index page)
     re_init_click: "Re-Initialize" button click instance
-    dl_click: "Data Download" button click instance from the index page
-    merge_click: "Data Merge" button click instance from the index page
-    previous_click: "Previous" button click instance
     connect_click: "Connect" button click instance
     init_btn_click: "Initialize" button click instance
-    close_click: "Close" button click instance
     is_open: modal open state
-    curr_children: modal context
+    curr_children: modal content
     json_data: json wrapping "is_open", which later is outputted as "action-modal-open-state"
     date: value from datepicker when initializing
     hour: hour from dropdown when initializing
@@ -422,46 +401,37 @@ def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previo
     ctx = callback_context
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    # Action Type 1: "Initialize" button triggered from the index page
-    if any(x is not None for x in [init_click, re_init_click, dl_click, merge_click, previous_click, connect_click, init_btn_click, close_click]):
+    if any(x is not None for x in [init_click, dl_click, merge_click,
+                                   re_init_click, connect_click, init_btn_click]):
         try:
+            # Type 1: "Initialize" button triggered from the index page
             if triggered_id in ["open-initialize-modal","re-initialize-btn"]:
-                modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
+                modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")]
+                modal_content.extend(set_modal_content(footer_view="Modal Start"))
                 return True, modal_content, json.dumps({"is_open": True})
 
-            # Action Type 2: "Download" button triggered from the index page
+            # Type 2: "Download" button triggered from the index page
             if triggered_id == "open-download-modal":
-                modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")] + set_modal_content(footer_view="Modal Start")
+                modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")]
+                modal_content.extend(set_modal_content(footer_view="Modal Start"))
                 return True, modal_content, json.dumps({"is_open": True})
 
-            # Action Type 3: "Data Merge" button triggered from the index page
+            # Type 3: "Data Merge" button triggered from the index page
             if triggered_id == "open-data-merge-modal":
-                modal_content = [dbc.ModalHeader("Merge Data", className="modal-header-text")] + set_modal_content(merge=True)
+                modal_content = [dbc.ModalHeader("Merge Data", className="modal-header-text")]
+                modal_content.extend(set_modal_content(merge=True))
                 return True, modal_content, json.dumps({"is_open": True})
 
-            # Action Type 4: "Previous" button triggered from the modal
-            if triggered_id == "previous-modal":
-                # Disconnect the serial connection if one exists
-                if arduino.arduino_serial:
-                    arduino.disconnect_arduino()
-
-                # Render previous modal content in DOM
-                prev_content = modal_history.pop()
-                return True, prev_content, json.dumps({"is_open": True})
-
-            # Action Type 5: "Connect" button triggered from the modal
+            # Type 4: "Connect" button triggered ("Initialize", "Download")
             if triggered_id == "connect-modal":
-                # Update the past modal content as we prepare new modal view
-                modal_history.append(curr_children)
                 arduino_status = arduino.get_device_status()
 
                 if arduino.arduino_serial:
-                    # Action Type 5-1: The "Connect" button was for "Initialization"
                     if "Initialize Arduino" in str(curr_children):
                         if arduino_status in [b"FIRST_POWERON", b"DATA_FILE_EXISTS"]:
-                            updated_children = [curr_children[0]] + set_modal_content(initialize=True, footer_view="Initialize")
+                            updated_children = [curr_children[0]]
+                            updated_children.extend(set_modal_content(initialize=True, footer_view="Initialize"))
                             return True, updated_children, json.dumps({"is_open": True})
-                    # Action Type 5-2: The "Connect" button was for "Download"
                     elif "Download Data" in str(curr_children):
                         if arduino_status == b"FIRST_POWERON":
                             updated_children = [
@@ -471,14 +441,12 @@ def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previo
                             ]
                             return True, updated_children, json.dumps({"is_open": True})
                         if arduino_status == b"DATA_FILE_EXISTS":
-                            updated_children = [curr_children[0]] + set_modal_content(download=True)
+                            updated_children = [curr_children[0]]
+                            updated_children.extend(set_modal_content(download=True))
                             return True, updated_children, json.dumps({"is_open": True})
 
-            # Action Type 6: "Initialize" button triggered from the button
+            # Type 5: "Initialize" button triggered
             if triggered_id == "initialize-btn":
-                # Update the past modal content as we prepare new modal view
-                modal_history.append(curr_children)
-
                 # Convert selected date and time to epoch time
                 selected_datetime = datetime.datetime.strptime(date, "%Y-%m-%d")
                 selected_datetime = selected_datetime.replace(hour=int(hour), minute=int(minute))
@@ -492,15 +460,14 @@ def toggle_action_modal(init_click, re_init_click, dl_click, merge_click, previo
                 arduino.initialize_arduino(epoch_time)
 
                 formatted_dt = selected_datetime.strftime("%A, %B %d at %I:%M %p")
-                updated_children = [curr_children[0]] + set_modal_content(selected_dt=formatted_dt)
+                updated_children = [curr_children[0]]
+                updated_children.extend(set_modal_content(selected_dt=formatted_dt))
                 return True, updated_children, json.dumps({"is_open": True})
-
-            if triggered_id == "close-modal":
-                return False, dash.no_update, json.dumps({"is_open": False})
 
         except Exception as e:
             print(f"Following exception triggered: {e}")
-            updated_children = [curr_children[0]] + set_modal_content(error=str(e))
+            updated_children = [curr_children[0]]
+            updated_children.extend(set_modal_content(error=str(e)))
             return True, updated_children, json.dumps({"is_open": True})
 
     return is_open, dash.no_update, json_data
@@ -613,6 +580,21 @@ def toggle_merge_button(base_data, append_data):
     """
     if base_data is None or append_data is None: return True
 
+    return False
+
+@app.callback(
+    Output("download-data-merge-btn", "disabled", allow_duplicate=True),
+    [Input("download-data-merge-btn", "n_clicks")],
+    prevent_initial_call=True
+)
+def disable_merge_download_button(download_click):
+    """
+    Callback to disable the download-data-merge-btn when clicked
+
+    download_click: "Download" button click instance
+    """
+    if download_click:
+        return True  # Disable button immediately when clicked
     return False
 
 @app.callback(

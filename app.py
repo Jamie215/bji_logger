@@ -22,7 +22,7 @@ import arduino
 external_stylesheets = [
     "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap",
     dbc.themes.LITERA,
-    "https://use.fontawesome.com/releases/v5.8.1/css/all.css",
+    dbc.icons.FONT_AWESOME,
     "assets/style.css"
 ]
 
