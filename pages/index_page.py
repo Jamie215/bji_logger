@@ -391,7 +391,7 @@ def register_index_callbacks():
                     return True, modal_content, json.dumps({"is_open": True})
 
                 # Type 2: "Download" button triggered from the index page
-                if triggered_id in ["open-download-modal", "re-download-btn"]:
+                if triggered_id == "open-download-modal":
                     modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")]
                     modal_content.extend(set_modal_content(footer_view="Modal Start"))
                     return True, modal_content, json.dumps({"is_open": True})
