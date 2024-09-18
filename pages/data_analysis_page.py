@@ -286,9 +286,12 @@ def read_data(contents, filename):
     [Input("date-picker-range", "start_date"),
      Input("date-picker-range", "end_date")]
 )
-def update_hour_options(start_date, end_date):
+def update_hour_options(start_hour, end_hour):
     """
     Callback for the hour option of the date parsing feature
+
+    start_hour: hour of start datetime
+    end_date: hour of end datetime
     """
     hours = [{"label": str(hour).zfill(2), "value": str(hour).zfill(2)} for hour in range(24)]
     return hours, hours
@@ -299,9 +302,12 @@ def update_hour_options(start_date, end_date):
     [Input("date-picker-range", "start_date"),
      Input("date-picker-range", "end_date")]
 )
-def update_minute_options(start_date, end_date):
+def update_minute_options(start_min, end_min):
     """
     Callback for the minute option of the date parsing feature
+    
+    start_min: minute of start datetime
+    end_min: minute of end datetime
     """
     minutes = [{"label": str(minute).zfill(2), "value": str(minute).zfill(2)} for minute in range(0, 60, 5)]
     return minutes, minutes
@@ -352,6 +358,8 @@ def update_selected_data(start_date, end_date, start_hour, start_minute, end_hou
 def toggle_download_button(upload_data):
     """
     Enable download button only when upload data is available
+
+    upload_data: data uploaded to the interface
     """
     if upload_data is None: return True
 
@@ -583,6 +591,7 @@ def update_active_steps(selected_data, active_steps_defn):
     Display active steps related to the displaying data
 
     selected_data: json wrapped Arduino data
+    active_steps_defn: active steps definition set by user
     """
     if selected_data is None: return None
 
@@ -641,6 +650,7 @@ def update_active_minutes(selected_data, active_steps_defn):
     Display active minutes related to the displaying data
 
     selected_data: json wrapped Arduino data
+    active_steps_defn: active step definition set by the user
     """
     if selected_data is None: return None
 
