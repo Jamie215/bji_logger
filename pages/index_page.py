@@ -135,7 +135,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 ])
             ),
             dbc.Col([
-                    dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn")
+                    dbc.Button("Try Again", id="re-attempt-btn", className="initialize-btn")
                 ],
                 style={"text-align":"center"},
                 width=12
@@ -222,7 +222,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
             [
                 dbc.Button("Connect", id="connect-modal", style={"display":"none"}),
                 dbc.Button("Initialize", id="initialize-btn", style={"display":"none"}),
-                dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
+                dbc.Button("Try Again", id="re-attempt-btn", style={"display":"none"})
             ],
             style={"height":"0px"}
         )
@@ -246,7 +246,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                     [
                         dbc.Button("Connect", id="connect-modal", color="success", className="ms-auto connect-btn"),
                         dbc.Button("Initialize", id="initialize-btn", style={"display":"none"}),
-                        dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
+                        dbc.Button("Try Again", id="re-attempt-btn", style={"display":"none"})
                     ],
                     width=3,
                     align="center"
@@ -272,7 +272,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                     [
                         dbc.Button("Connect", id="connect-modal", style={"display":"none"}),
                         dbc.Button("Initialize", id="initialize-btn", color="success", style={"padding":"10px", "color": "White"}),
-                        dbc.Button("Re-Initialize", id="re-initialize-btn", style={"display":"none"})
+                        dbc.Button("Try Again", id="re-attempt-btn", style={"display":"none"})
                     ],
                     width=3,
                     align="center"
@@ -351,7 +351,7 @@ def register_index_callbacks():
             [Input("open-initialize-modal", "n_clicks"),
             Input("open-download-modal", "n_clicks"),
             Input("open-data-merge-modal", "n_clicks"),
-            Input("re-initialize-btn", "n_clicks"),
+            Input("re-attempt-btn", "n_clicks"),
             Input("connect-modal", "n_clicks"),
             Input("initialize-btn", "n_clicks")],
             [State("action-modal", "is_open"),
@@ -361,14 +361,14 @@ def register_index_callbacks():
             State("hour", "value"),
             State("minute", "value")],
             prevent_initial_call=True)
-    def toggle_action_modal(init_click, dl_click, merge_click, re_init_click, connect_click, init_btn_click, is_open, curr_children, json_data, date, hour, minute):
+    def toggle_action_modal(init_click, dl_click, merge_click, re_attempt_click, connect_click, init_btn_click, is_open, curr_children, json_data, date, hour, minute):
         """
         Set the appropriate callback based on the user action related to the modal
 
         init_click: "Initialize Device" button click instance (index page)
         dl_click: "Data Download" button click instance (index page)
         merge_click: "Data Merge" button click instance (index page)
-        re_init_click: "Re-Initialize" button click instance
+        re_attempt_click: "Try Again" button click instance
         connect_click: "Connect" button click instance
         init_btn_click: "Initialize" button click instance
         is_open: modal open state
@@ -382,16 +382,16 @@ def register_index_callbacks():
         triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
         if any(x is not None for x in [init_click, dl_click, merge_click,
-                                    re_init_click, connect_click, init_btn_click]):
+                                    re_attempt_click, connect_click, init_btn_click]):
             try:
                 # Type 1: "Initialize" button triggered from the index page
-                if triggered_id in ["open-initialize-modal","re-initialize-btn"]:
+                if triggered_id == "open-initialize-modal":
                     modal_content = [dbc.ModalHeader("Initialize Arduino", className="modal-header-text")]
                     modal_content.extend(set_modal_content(footer_view="Modal Start"))
                     return True, modal_content, json.dumps({"is_open": True})
 
                 # Type 2: "Download" button triggered from the index page
-                if triggered_id == "open-download-modal":
+                if triggered_id in ["open-download-modal", "re-download-btn"]:
                     modal_content = [dbc.ModalHeader("Download Data", className="modal-header-text")]
                     modal_content.extend(set_modal_content(footer_view="Modal Start"))
                     return True, modal_content, json.dumps({"is_open": True})
@@ -401,8 +401,14 @@ def register_index_callbacks():
                     modal_content = [dbc.ModalHeader("Merge Data", className="modal-header-text")]
                     modal_content.extend(set_modal_content(merge=True))
                     return True, modal_content, json.dumps({"is_open": True})
+                
+                # Type 4: "Try Again" button triggered ("Error" from Arduino connection)
+                if triggered_id == "re-attempt-btn":
+                    updated_children = [curr_children[0]]
+                    updated_children.extend(set_modal_content(footer_view="Modal Start"))
+                    return True, updated_children, json.dumps({"is_open": True})
 
-                # Type 4: "Connect" button triggered ("Initialize", "Download")
+                # Type 5: "Connect" button triggered ("Initialize", "Download")
                 if triggered_id == "connect-modal":
                     arduino_status = arduino.get_device_status()
 
@@ -425,7 +431,7 @@ def register_index_callbacks():
                                 updated_children.extend(set_modal_content(download=True))
                                 return True, updated_children, json.dumps({"is_open": True})
 
-                # Type 5: "Initialize" button triggered
+                # Type 6: "Initialize" button triggered
                 if triggered_id == "initialize-btn":
                     # Convert selected date and time to epoch time
                     selected_datetime = datetime.datetime.strptime(date, "%Y-%m-%d")
@@ -562,6 +568,9 @@ def register_index_callbacks():
     def toggle_merge_button(base_data, append_data):
         """
         Enable merge button only when both base & append data are uploaded
+
+        base_data: base data
+        append_data: appending data
         """
         if base_data is None or append_data is None: return True
 
