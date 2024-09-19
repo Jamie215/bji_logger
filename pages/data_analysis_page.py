@@ -400,7 +400,7 @@ def download_csv(filename, n_clicks, selected_data):
             file_name = f"{base_uid}_parsed_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
             file_path = os.path.join(DOWNLOAD_DIR, file_name)
 
-            return (df.to_csv(file_path, index=False), file_status)
+            return (df.to_csv(file_path, index=False, header=False), file_status)
     return None, None
 
 def aggregate_data(df, unit):

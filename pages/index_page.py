@@ -621,6 +621,8 @@ def register_index_callbacks():
                 pass  # CSV has header row
             else:
                 df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
+            # Convert datetime column into datetime type
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
             return df
 
         if merge_btn and base_data and append_data:
@@ -650,7 +652,7 @@ def register_index_callbacks():
 
             else:
                 file_status = html.Div("Download Complete", style={"color": "mediumseagreen", "margin-left": "150px"})
-                return (merge_df.to_csv(file_path, index=False), file_status)
+                return (merge_df.to_csv(file_path, index=False, header=False), file_status)
 
         return None, None
 
