@@ -50,7 +50,7 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                 ])
             ),
             html.Div([
-                    dbc.Button("Re-Initialize", id="re-initialize-btn", className="initialize-btn")
+                    dbc.Button("Re-Initialize", id="re-attempt-btn", className="initialize-btn")
                 ],
                 style={"text-align":"center"}
             )
