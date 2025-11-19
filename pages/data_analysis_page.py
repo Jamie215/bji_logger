@@ -243,16 +243,17 @@ def read_data(contents, filename):
     """
     if contents is None:
         # Create dummy data (For demo purposes)
-        df = pd.DataFrame(
-            {"timestamp": np.arange(datetime(2024,2,1,0,0,0), datetime(2024,5,30,23,59,0), timedelta(minutes=5))}
-        )
+        # df = pd.DataFrame(
+        #     {"timestamp": np.arange(datetime(2024,2,1,0,0,0), datetime(2024,5,30,23,59,0), timedelta(minutes=5))}
+        # )
 
-        x = np.arange(0,df.size)
-        def f(x):
-            tmp = np.sin(0.01*x) + np.random.normal(size=len(x))*25
-            tmp[tmp<0] = 0
-            return tmp.round()
-        df["steps"] = f(x)
+        # x = np.arange(0,df.size)
+        # def f(x):
+        #     tmp = np.sin(0.01*x) + np.random.normal(size=len(x))*25
+        #     tmp[tmp<0] = 0
+        #     return tmp.round()
+        # df["steps"] = f(x)
+        return None, None, None, None, None, None, None
     else:
         _, content_string = contents.split(",")
         decoded = base64.b64decode(content_string)
@@ -261,7 +262,7 @@ def read_data(contents, filename):
             if df.columns[0] == "timestamp" and df.columns[1] == "steps":
                 pass  # CSV has header row
             else:
-                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
+                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"])
         else:
             return None, None, None, None, None, None, None
 
@@ -340,10 +341,10 @@ def update_selected_data(start_date, end_date, start_hour, start_minute, end_hou
     df = pd.read_json(io.StringIO(raw_data), orient="split")
 
     try:
-        start_dt = f"{start_date} {start_hour}:{start_minute}"
-        end_dt = f"{end_date} {end_hour}:{end_minute}"
-        start_dt = datetime.strptime(start_dt, "%Y-%m-%d %H:%M")
-        end_dt = datetime.strptime(end_dt, "%Y-%m-%d %H:%M")
+        start_dt = f"{start_date} {start_hour}:{start_minute}:00"
+        end_dt = f"{end_date} {end_hour}:{end_minute}:59"
+        start_dt = datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")
+        end_dt = datetime.strptime(end_dt, "%Y-%m-%d %H:%M:%S")
     except ValueError:
         selected_df = df
     else:
@@ -381,7 +382,6 @@ def download_csv(filename, n_clicks, selected_data):
     n_clicks: click instance of download-csv-btn
     selected_data: parsed data
     """
-
     if selected_data is None: return None
 
     if filename and n_clicks:
@@ -455,7 +455,7 @@ def update_patient_info(filename, raw_data):
 
     df = pd.read_json(io.StringIO(raw_data), orient="split")
     # Handle cases where input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         parts = filename.split("_")
         patient_id = parts[0]
         device_version = parts[1].rsplit(".", 1)[0]
@@ -509,16 +509,17 @@ def update_collected_period(raw_data):
     if raw_data is None: return None
 
     df = pd.read_json(io.StringIO(raw_data), orient="split")
-    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
-        " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
 
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
             )
         )
+
+    collected_period = (str(df["timestamp"].iloc[0].strftime("%b. %d, %I:%M %p")) + 
+        " - " + str(df["timestamp"].iloc[-1].strftime("%b. %d, %I:%M %p")))
 
     return html.H5(collected_period, className="color-sub", style={"text-align":"left"})
 
@@ -537,7 +538,7 @@ def update_total_steps(selected_data):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
@@ -566,7 +567,7 @@ def update_total_minutes(selected_data):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
@@ -597,7 +598,7 @@ def update_active_steps(selected_data, active_steps_defn):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
@@ -656,7 +657,7 @@ def update_active_minutes(selected_data, active_steps_defn):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
@@ -720,7 +721,7 @@ def update_scatter(selected_value, selected_data):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
@@ -765,8 +766,12 @@ def update_scatter(selected_value, selected_data):
         print(f"Error calculating basic information: {e}")
         max_val, max_timestamp, mean_val = 0, "N/A", 0
 
+    time_min = df_new["timestamp"].min()
+    time_max = df_new["timestamp"].max()
+    time_range = [time_min, time_max]
+
     plot.update_layout(
-        xaxis={"range": [df_new["timestamp"].min(), df_new["timestamp"].max()]},
+        xaxis={"range": time_range},
         margin={"l": 20, "r": 20, "t": 20, "b": 20},
         paper_bgcolor="white",
         hoverlabel={"bgcolor": "white",
@@ -825,7 +830,7 @@ def update_sunburst(selected_data):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
@@ -875,7 +880,7 @@ def update_boxwhisker(selected_value, selected_data):
 
     df = pd.read_json(io.StringIO(selected_data), orient="split")
     # Handle cases where the input data is empty
-    if pd.DataFrame(df).empty:
+    if df.empty:
         return dbc.Row(
             dbc.Col(
                 html.Div("No Data Available", className="flex-container")
