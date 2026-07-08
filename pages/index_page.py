@@ -6,6 +6,7 @@ import json
 import os
 import base64
 import io
+import tempfile
 
 import pytz
 from dash import dcc, html, Input, Output, State, callback_context
@@ -79,38 +80,27 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
         ]
     elif merge:
         status_msg= [
-            html.H6("Merge 2 Datasets from the Same Participant"),
-            html.Div(["Please ensure that the start datetime of the 2nd file is ",
-                      html.B("after "),
-                      "the end datetime of the first file."], className="mb-4"),
-            dbc.Row([
-                dbc.Col(html.H6("Base File: "), width=3),
-                dbc.Col(html.Div(id="upload-base-file-status", className="mb-2"), width=9)
-            ]),
+            html.H6("Merge Datasets from the Same Participant"),
+            html.Div(["Select ",
+                      html.B("two or more "),
+                      "data files from the same participant. They will be combined, "
+                      "ordered by time, and de-duplicated automatically, so the upload "
+                      "order does not matter.",
+                      html.Br(),
+                      html.Small("Tip: select all files at once in the file dialog "
+                                 "(or drag them together).", className="text-muted")],
+                     className="mb-4"),
+            html.Br(),
             dcc.Upload(
-                id="base-data",
+                id="merge-data",
                 children=html.Div([
                     html.I(className="fas fa-upload"),
                     " Drag and Drop or ",
-                    html.A("Select Base File")
+                    html.A("Select Files")
                 ]),
-                multiple=False,
-                className="upload-box mb-4"
-            ),
-            dbc.Row([
-                dbc.Col(html.H6("2nd File: "), width=3),
-                dbc.Col(html.Div(id="upload-append-file-status", className="mb-2"), width=9)
-            ]),
-            dcc.Upload(
-                id="append-data",
-                children=html.Div([
-                    html.I(className="fas fa-upload"),
-                    " Drag and Drop or ",
-                    html.A("Select Second File")
-                ]),
-                multiple=False,
-                className="upload-box mb-4"
-            ),
+                multiple=True,
+                className="upload-box mb-2"),
+            html.Div(id="upload-merge-file-status", className="mb-4"),
             dbc.Button("Download Merged Data", id="download-data-merge-btn", className="merge-btn mb-2"),
             dcc.Loading(
                 id="loading-download",
@@ -524,55 +514,46 @@ def register_index_callbacks():
 
         return (None, {}, None, False)
 
-    @app.callback(
-            Output("upload-base-file-status", "children"),
-            Input("base-data", "contents"),
-            State("base-data", "filename"),
-            prevent_initial_call=True
-    )
-    def update_base_file_status(base_data, base_filename):
-        """
-        Update the display when the base file is uploaded for merging feature
-
-        base_data: uploaded file
-        base_filename: uploaded filename
-        """
-        # Ensure that the file is uploaded
-        if base_data is None: return None
-
-        return html.Div(f"{base_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
 
     @app.callback(
-            Output("upload-append-file-status", "children"),
-            Input("append-data", "contents"),
-            State("append-data", "filename"),
+            Output("upload-merge-file-status", "children"),
+            Input("merge-data", "contents"),
+            State("merge-data", "filename"),
             prevent_initial_call=True
     )
-    def update_append_file_status(append_data, append_filename):
+    def update_merge_file_status(merge_contents, merge_filenames):
         """
-        Update the display when the file is uploaded for merging feature
+        List the files uploaded for the merging feature
 
-        append_data: uploaded file
-        append_filename: uploaded filename
+        merge_contents: list of uploaded files
+        merge_filenames: list of uploaded filenames
         """
-        # Ensure that the file is uploaded
-        if append_data is None: return None
+        # Ensure that files are uploaded
+        if not merge_contents: return None
 
-        return html.Div(f"{append_filename}", style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"})
+        if len(merge_contents) < 2:
+            return html.Div(
+                "Please select at least 2 files to merge.",
+                style={"color": "indianred", "margin-left": "15px"}
+            )
+
+        return html.Div([
+            html.Div(f"{len(merge_filenames)} files selected:",
+                     style={"color": "steelblue", "font-weight": "bold", "margin-left": "15px"}),
+            html.Ul([html.Li(name) for name in merge_filenames])
+        ])
 
     @app.callback(
             Output("download-data-merge-btn", "disabled"),
-            [Input("base-data", "contents"),
-            Input("append-data", "contents")]
+            Input("merge-data", "contents")
     )
-    def toggle_merge_button(base_data, append_data):
+    def toggle_merge_button(merge_contents):
         """
-        Enable merge button only when both base & append data are uploaded
+        Enable merge button only when at least two files are uploaded
 
-        base_data: base data
-        append_data: appending data
+        merge_contents: list of uploaded files
         """
-        if base_data is None or append_data is None: return True
+        if not merge_contents or len(merge_contents) < 2: return True
 
         return False
 
@@ -592,26 +573,24 @@ def register_index_callbacks():
         return False
 
     @app.callback(
-            Output("download-merge-df-csv", "data"),
-            Output("download-merge-df-status", "children"),
-            [Input("base-data", "contents"),
-            Input("append-data", "contents"),
-            Input("download-data-merge-btn", "n_clicks")],
-            [State("base-data", "filename")],
-            prevent_initial_call=True
+        Output("download-merge-df-csv", "data"),
+        Output("download-merge-df-status", "children"),
+        [Input("merge-data", "contents"),
+        Input("download-data-merge-btn", "n_clicks")],
+        [State("merge-data", "filename")],
+        prevent_initial_call=True
     )
-    def merge_data(base_data, append_data, merge_btn, base_filename):
+    def merge_data(merge_contents, merge_btn, merge_filenames):
         """
-        Merge the two csv files with the same format.
-        Assumes that the end datetime of the base file is before the start datetime of the second file
+        Merge two or more csv files with the same format into a single dataset.
+        The files may be uploaded in any order; the result is ordered by time.
 
-        base_data: base file that will be merged
-        append_data: additional file that will be appended to the base file
-        merge_btn: name of the merged file
-        base_filename: name of the base file
+        merge_contents: list of files that will be merged
+        merge_btn: "Download Merged Data" button click instance
+        merge_filenames: list of the uploaded filenames
         """
-        # Ensure that both files are read
-        if base_data is None or append_data is None: return None, None
+        # Ensure that at least two files are read
+        if not merge_contents or len(merge_contents) < 2: return None, None
 
         def read_csv(data):
             _, content_string = data.split(",")
@@ -620,39 +599,71 @@ def register_index_callbacks():
             if df.columns[0] == "timestamp" and df.columns[1] == "steps":
                 pass  # CSV has header row
             else:
-                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"], skiprows=1)
+                # No header row: the app exports headerless CSVs, so the first
+                # line is genuine data. Re-read without skipping any rows.
+                df = pd.read_csv(io.StringIO(decoded.decode("utf-8")), names=["timestamp", "steps"])
             # Convert datetime column into datetime type
             df["timestamp"] = pd.to_datetime(df["timestamp"])
             return df
 
-        if merge_btn and base_data and append_data:
+        if merge_btn and merge_contents:
             try:
-                base_df = read_csv(base_data)
-                append_df = read_csv(append_data)
+                dfs = [read_csv(content) for content in merge_contents]
 
-                # Merge the two dataset
-                merge_df = pd.concat([base_df, append_df], ignore_index=True)
+                # Detect overlap: order the files by their start time and check
+                # whether any file begins before the previous data has ended, so
+                # the user is told when the datasets are not strictly sequential.
+                has_overlap = False
+                running_max = None
+                for df in sorted((d for d in dfs if not d.empty),
+                                 key=lambda d: d["timestamp"].min()):
+                    if running_max is not None and df["timestamp"].min() <= running_max:
+                        has_overlap = True
+                    curr_max = df["timestamp"].max()
+                    running_max = curr_max if running_max is None else max(running_max, curr_max)
+
+                # Combine all datasets, order chronologically, and drop any
+                # exact-duplicate timestamps so the number of files and their
+                # upload order no longer affect the result (the earliest-uploaded
+                # file wins on a tie).
+                merge_df = pd.concat(dfs, ignore_index=True)
                 merge_df["timestamp"] = pd.to_datetime(merge_df["timestamp"])
-                
+                merge_df = merge_df.sort_values("timestamp", kind="stable")
+                merge_df = merge_df.drop_duplicates(subset="timestamp", keep="first")
+                merge_df = merge_df.reset_index(drop=True)
+
                 start_dt = merge_df["timestamp"].min().strftime("%Y-%m-%d")
                 end_dt = merge_df["timestamp"].max().strftime("%Y-%m-%d")
 
-                # Prepare dataset download
-                USER_FILES_DIR = os.getcwd()
-                DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
-                os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-                base_uid = base_filename.split("_")[0]
-
+                base_uid = merge_filenames[0].split("_")[0]
                 file_name = f"{base_uid}_merged_{start_dt}_{end_dt}.csv"
-                file_path = os.path.join(DOWNLOAD_DIR, file_name)
 
             # Add error message when failure to download.
             except Exception as e:
                 print(f"Following exception triggered: {e}")
+                error_status = html.Div(
+                    "Merge failed. Please check that all files are valid data exports.",
+                    style={"color": "indianred", "margin-left": "15px"}
+                )
+                return None, error_status
 
             else:
-                file_status = html.Div("Download Complete", style={"color": "mediumseagreen", "margin-left": "150px"})
-                return (merge_df.to_csv(file_path, index=False, header=False), file_status)
+                if has_overlap:
+                    file_status = html.Div(
+                        f"Download Complete — merged {len(dfs)} files (note: some "
+                        "files overlap in time; duplicate timestamps were removed).",
+                        style={"color": "darkorange", "margin-left": "15px"}
+                    )
+                else:
+                    file_status = html.Div(
+                        f"Download Complete — merged {len(dfs)} files.",
+                        style={"color": "mediumseagreen", "margin-left": "15px"}
+                    )
+                # Browser based download
+                return (
+                    dcc.send_data_frame(merge_df.to_csv, file_name, index=False, header=False),
+                    file_status
+                )
 
         return None, None
 

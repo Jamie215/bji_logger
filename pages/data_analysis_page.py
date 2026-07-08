@@ -382,25 +382,23 @@ def download_csv(filename, n_clicks, selected_data):
     n_clicks: click instance of download-csv-btn
     selected_data: parsed data
     """
-    if selected_data is None: return None
+    if selected_data is None: return None, None
 
     if filename and n_clicks:
         try:
             df = pd.read_json(io.StringIO(selected_data), orient="split")
             file_status = html.Div("Complete", style={"color": "mediumseagreen", "margin-left": "15px"})
-
-            USER_FILES_DIR = os.getcwd()
-            DOWNLOAD_DIR = os.path.join(USER_FILES_DIR, "Downloaded Data")
-            os.makedirs(DOWNLOAD_DIR, exist_ok=True)
             base_uid = filename.split("_")[0]
         except Exception as e:
             print(f"Following exception triggered: {e}")
             return None, html.Div("Error", style={"color": "indianred", "margin-left": "15px"})
         else:
             file_name = f"{base_uid}_parsed_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
-            file_path = os.path.join(DOWNLOAD_DIR, file_name)
-
-            return (df.to_csv(file_path, index=False, header=False), file_status)
+            # Browser download only — the user chooses where it lands.
+            return (
+                dcc.send_data_frame(df.to_csv, file_name, index=False, header=False),
+                file_status
+            )
     return None, None
 
 def aggregate_data(df, unit):
