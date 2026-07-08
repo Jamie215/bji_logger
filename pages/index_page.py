@@ -85,12 +85,8 @@ def set_modal_content(initialize=False, selected_dt=None, download=False, merge=
                       html.B("two or more "),
                       "data files from the same participant. They will be combined, "
                       "ordered by time, and de-duplicated automatically, so the upload "
-                      "order does not matter.",
-                      html.Br(),
-                      html.Small("Tip: select all files at once in the file dialog "
-                                 "(or drag them together).", className="text-muted")],
+                      "order does not matter."],
                      className="mb-4"),
-            html.Br(),
             dcc.Upload(
                 id="merge-data",
                 children=html.Div([

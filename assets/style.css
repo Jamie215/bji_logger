@@ -335,3 +335,53 @@ body {
     width: 2px;
     background-color: lightsteelblue;
 }
+
+/* Comment box on the data analysis page */
+.comment-box {
+    border: 1px solid lightgray;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: 'Roboto';
+    resize: vertical;
+}
+
+/* Save-as-PDF (browser print) styling for the data analysis page */
+@media print {
+    .navbar,
+    .export-bar,
+    .upload-box {
+        display: none !important;
+    }
+
+    body {
+        background-color: white !important;
+    }
+
+    .graph-section,
+    .white-background-2 {
+        page-break-inside: avoid;
+    }
+
+    /* Stack the dashboard columns so each chart gets the full page width */
+    .container-fluid .row > [class*="col-"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+
+    .container-fluid {
+        padding: 0 !important;
+    }
+
+    /* Keep Plotly graphs from overflowing the page (paired with print.js,
+       which re-lays-out each chart to the page width before printing) */
+    .js-plotly-plot,
+    .plot-container,
+    .svg-container,
+    .main-svg {
+        max-width: 100% !important;
+    }
+
+    @page {
+        margin: 1cm;
+    }
+}

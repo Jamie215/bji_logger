@@ -54,6 +54,36 @@ data_analysis_layout = html.Div([
             ),
             dbc.Row(
                 dbc.Col(
+                    html.Div(
+                        [
+                            dbc.Button(
+                                [html.I(className="fas fa-file-pdf"), " Download Page (PDF)"],
+                                id="download-pdf-btn",
+                                color="primary",
+                                outline=True,
+                                className="me-2",
+                                disabled=True
+                            ),
+                            dbc.Button(
+                                [html.I(className="fas fa-file-csv"), " Download Processed Values (CSV)"],
+                                id="download-values-btn",
+                                color="primary",
+                                outline=True,
+                                disabled=True
+                            ),
+                            dcc.Download(id="download-values-csv"),
+                            html.Div(id="pdf-print-dummy", style={"display": "none"}),
+                        ],
+                        className="export-bar",
+                        style={"text-align": "right"},
+                    ),
+                    width=12,
+                ),
+                className="row",
+                style={"margin-bottom": "10px"},
+            ),
+            dbc.Row(
+                dbc.Col(
                     [
                         html.H4("Total Collected Period", className="color-main"),
                         html.Div(id="content-collected-period"),
@@ -215,6 +245,22 @@ data_analysis_layout = html.Div([
                     )
                 ],
                 className="row"
+            ),
+            dbc.Row(
+                dbc.Col(
+                    [
+                        html.H4("Comments", className="color-main"),
+                        dcc.Textarea(
+                            id="comment-box",
+                            placeholder="Enter any notes or observations about this participant's data...",
+                            className="comment-box",
+                            style={"width": "100%", "height": "120px"},
+                        ),
+                    ],
+                    width=12,
+                ),
+                className="row",
+                style={"margin-top": "10px", "margin-bottom": "10px"},
             )
         ],
         fluid=True,
@@ -352,6 +398,23 @@ def update_selected_data(start_date, end_date, start_hour, start_minute, end_hou
 
     return selected_df.to_json(date_format="iso", orient="split")
 
+# Enable the export buttons only when data has been uploaded
+@app.callback(
+    Output("download-pdf-btn", "disabled"),
+    Output("download-values-btn", "disabled"),
+    Input("upload-data", "contents")
+)
+def toggle_export_buttons(upload_data):
+    """
+    Enable the PDF and values-CSV download buttons only when data is uploaded
+
+    upload_data: data uploaded to the interface
+    """
+    if upload_data is None:
+        return True, True
+
+    return False, False
+
 @app.callback(
         Output("download-csv-btn", "disabled"),
         Input("upload-data", "contents")
@@ -400,6 +463,106 @@ def download_csv(filename, n_clicks, selected_data):
                 file_status
             )
     return None, None
+
+# Trigger the browser's print dialog so the whole page can be saved as a PDF
+app.clientside_callback(
+    """
+    function(n_clicks) {
+        if (n_clicks) {
+            window.print();
+        }
+        return "";
+    }
+    """,
+    Output("pdf-print-dummy", "children"),
+    Input("download-pdf-btn", "n_clicks"),
+    prevent_initial_call=True
+)
+
+@app.callback(
+    Output("download-values-csv", "data"),
+    Input("download-values-btn", "n_clicks"),
+    [State("selected-data", "data"),
+     State("raw-data", "data"),
+     State("active-step-slider", "value"),
+     State("upload-data", "filename"),
+     State("comment-box", "value")],
+    prevent_initial_call=True
+)
+def download_values(n_clicks, selected_data, raw_data, active_steps_defn, filename, comment):
+    """
+    Download all values shown in the interface as a summary CSV
+
+    n_clicks: "Download Values (CSV)" button click instance
+    selected_data: json wrapped Arduino data (currently displayed range)
+    raw_data: full raw json input
+    active_steps_defn: active step threshold set by the slider
+    filename: original uploaded filename
+    comment: text entered in the comment box
+    """
+    if not n_clicks or selected_data is None:
+        return None
+
+    df = pd.read_json(io.StringIO(selected_data), orient="split")
+    if df.empty:
+        return None
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    # Metrics shown across the interface
+    total_steps = int(df["steps"].sum())
+    total_min = round((df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]).total_seconds() / 60)
+    threshold = active_steps_defn
+    active_step = int(df[df["steps"] >= threshold]["steps"].sum())
+    active_min = int(len(df[df["steps"] >= threshold]) * 5)
+
+    max_idx = df["steps"].idxmax()
+    max_val = int(df["steps"].loc[max_idx])
+    max_ts = df["timestamp"].loc[max_idx].strftime("%Y-%m-%d %H:%M")
+    mean_val = round(float(df["steps"].mean()), 2)
+
+    selected_start = df["timestamp"].iloc[0].strftime("%Y-%m-%d %H:%M")
+    selected_end = df["timestamp"].iloc[-1].strftime("%Y-%m-%d %H:%M")
+
+    # UID / device version parsed from the filename
+    uid, device = "", ""
+    if filename:
+        parts = filename.split("_")
+        uid = parts[0]
+        if len(parts) > 1:
+            device = parts[1].rsplit(".", 1)[0]
+
+    # Full collected period from the raw data
+    collected_start, collected_end = "", ""
+    if raw_data:
+        raw_df = pd.read_json(io.StringIO(raw_data), orient="split")
+        if not raw_df.empty:
+            raw_df["timestamp"] = pd.to_datetime(raw_df["timestamp"])
+            collected_start = raw_df["timestamp"].iloc[0].strftime("%Y-%m-%d %H:%M")
+            collected_end = raw_df["timestamp"].iloc[-1].strftime("%Y-%m-%d %H:%M")
+
+    summary = pd.DataFrame(
+        [
+            ("UID", uid),
+            ("Device Version", device),
+            ("Collected Period Start", collected_start),
+            ("Collected Period End", collected_end),
+            ("Selected Range Start", selected_start),
+            ("Selected Range End", selected_end),
+            ("Active Step Threshold", threshold),
+            ("Total Steps", total_steps),
+            ("Total Minutes", total_min),
+            ("Active Steps", active_step),
+            ("Active Minutes", active_min),
+            ("Max Steps", max_val),
+            ("Max Steps Timestamp", max_ts),
+            ("Mean Steps (per 5 min)", mean_val),
+            ("Comments", (comment or "").replace("\r", " ").replace("\n", " ").strip()),
+        ],
+        columns=["Metric", "Value"]
+    )
+
+    export_name = f"{uid or 'data'}_summary_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
+    return dcc.send_data_frame(summary.to_csv, export_name, index=False)
 
 def aggregate_data(df, unit):
     """
