@@ -216,19 +216,34 @@ def day_of_week_profile(df):
     return total / ndays.replace(0, np.nan)
 
 
+# Nominal sampling period of the logger, in minutes (see interval_minutes).
+SAMPLE_MINUTES = 5
+
+def interval_minutes(df):
+    """
+    Minutes attributable to each reading: the time until the next reading,
+    capped at SAMPLE_MINUTES and aligned to df's index. Stays correct when the
+    spacing is not exactly 5 minutes (merge seams) and never counts an untracked
+    gap as tracked time; reduces to a flat SAMPLE_MINUTES for even sampling.
+    """
+    ordered = df.sort_values("timestamp")
+    mins = ordered["timestamp"].diff().shift(-1).dt.total_seconds().div(60)
+    mins = mins.clip(upper=SAMPLE_MINUTES).fillna(SAMPLE_MINUTES)
+    return mins.reindex(df.index)
+
+
 def series_metrics(df, threshold):
     """Per-series summary metrics (rate-normalised where relevant)."""
     n_days = days_with_data(df) or 1
     total_steps = int(df["steps"].sum())
     active_intervals = int((df["steps"] >= threshold).sum())
+    active_min_total = float(interval_minutes(df)[df["steps"] >= threshold].sum())
     return {
         "span_days": span_days(df),
         "days_with_data": days_with_data(df),
         "total_steps": total_steps,
         "steps_per_day": round(total_steps / n_days, 1),
-        "active_min_per_day": round(active_intervals * 5 / n_days, 1),
-        "active_pct": round(100 * active_intervals / len(df), 1) if len(df) else 0.0,
-        "mean_5min": round(float(df["steps"].mean()), 2) if len(df) else 0.0,
+        "active_min_per_day": round(active_min_total / n_days, 1)
     }
 
 
@@ -585,10 +600,12 @@ def update_trend(series, align, threshold):
     bin_days = 7  # weekly bins
 
     for i, (s, df) in enumerate(loaded):
-        # Weight each interval by active minutes (5 if active, else 0) so the
-        # trajectory averages to active minutes per day within each week.
+        # Weight each interval by its actual duration in minutes (capped at the
+        # sampling period) when active, else 0, so the trajectory averages to
+        # active minutes per day within each week — correct even across merge
+        # seams where the spacing is not exactly 5 minutes.
         work = df.copy()
-        work["steps"] = np.where(work["steps"] >= threshold, 5, 0)
+        work["steps"] = np.where(df["steps"] >= threshold, interval_minutes(df), 0.0)
         x, y = trajectory(work, align, bin_days)
 
         fig.add_trace(go.Scatter(

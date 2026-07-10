@@ -15,6 +15,23 @@ import plotly.express as px
 
 from app_instance import app
 
+# Nominal sampling period of the logger, in minutes. Weighting each reading by
+# the time until the next one (capped at this value) keeps minute totals correct
+# when the spacing is not exactly 5 minutes — e.g. at the seam between two merged
+# datasets — and never counts an untracked gap as tracked time.
+SAMPLE_MINUTES = 5
+
+def interval_minutes(df):
+    """
+    Minutes attributable to each reading: the time until the next reading,
+    capped at SAMPLE_MINUTES and aligned to df's index. Reduces to a flat
+    SAMPLE_MINUTES for evenly-sampled data.
+    """
+    ordered = df.sort_values("timestamp")
+    mins = ordered["timestamp"].diff().shift(-1).dt.total_seconds().div(60)
+    mins = mins.clip(upper=SAMPLE_MINUTES).fillna(SAMPLE_MINUTES)
+    return mins.reindex(df.index)
+
 # Define the layout of the app
 data_analysis_layout = html.Div([
     dbc.Container(
@@ -509,11 +526,12 @@ def download_values(n_clicks, selected_data, raw_data, active_steps_defn, filena
     df["timestamp"] = pd.to_datetime(df["timestamp"])
 
     # Metrics shown across the interface
+    mins = interval_minutes(df)
     total_steps = int(df["steps"].sum())
-    total_min = round((df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]).total_seconds() / 60)
+    total_min = int(round(mins.sum()))
     threshold = active_steps_defn
     active_step = int(df[df["steps"] >= threshold]["steps"].sum())
-    active_min = int(len(df[df["steps"] >= threshold]) * 5)
+    active_min = int(round(mins[df["steps"] >= threshold].sum()))
 
     max_idx = df["steps"].idxmax()
     max_val = int(df["steps"].loc[max_idx])
@@ -768,7 +786,9 @@ def update_total_minutes(selected_data):
             )
         )
 
-    total_min = round((df["timestamp"].iloc[-1]-df["timestamp"].iloc[0]).total_seconds() / 60)
+    # Tracked minutes (gap-aware): sum of each reading's interval, so untracked
+    # gaps between merged datasets are not counted as monitored time.
+    total_min = int(round(interval_minutes(df).sum()))
 
     return [
         html.Span(total_min, style={"font-weight":"bold", "font-size":"40px"}),
@@ -859,8 +879,9 @@ def update_active_minutes(selected_data, active_steps_defn):
         )
 
     unit_active_steps = active_steps_defn
-    active_min = len(df[df["steps"] >= unit_active_steps]) * 5
-    inactive_min = len(df[df["steps"] < unit_active_steps]) * 5
+    mins = interval_minutes(df)
+    active_min = int(round(mins[df["steps"] >= unit_active_steps].sum()))
+    inactive_min = int(round(mins[df["steps"] < unit_active_steps].sum()))
 
     fig_active_mins = go.Figure(go.Pie(
             labels=["Active Mins", "Inactive Mins"],
