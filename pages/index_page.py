@@ -278,7 +278,8 @@ def index_layout():
         1. Initialize Device
         2. Data Download
         3. Data Analysis (Single Dataset)
-        4. Data Merge
+        4. Data Comparison (Multiple Datasets)
+        5. Data Merge
     """
     return html.Div(
         [
@@ -311,8 +312,8 @@ def index_layout():
             ),
             dbc.Button(
                 [
-                    html.I(className="fas fa-balance-scale page-btn-icon"),
-                    "Data Analysis (Comparison)"
+                    html.I(className="fas fa-chart-line page-btn-icon"),
+                    "Data Comparison (Multiple Datasets)"
                 ],
                 href="/data-comparison",
                 outline=True,
@@ -506,11 +507,10 @@ def register_index_callbacks():
                 filename = f"{filename}.csv"
                 get_readable = True
 
-            # download_file must write to disk; use a temp path just to build the
-            # browser download, so no permanent local copy is left behind.
             tmp_path = os.path.join(tempfile.gettempdir(), filename)
             arduino.download_file(tmp_path, get_readable)
 
+            # Update the file download status
             file_status = html.Div("Download Complete", style={"color": "mediumseagreen"})
             return (dcc.send_file(tmp_path), {}, file_status, False)
 
@@ -611,28 +611,33 @@ def register_index_callbacks():
         if merge_btn and merge_contents:
             try:
                 dfs = [read_csv(content) for content in merge_contents]
+                # Keep only non-empty datasets, ordered by start time.
+                dfs = [d for d in dfs if not d.empty]
+                dfs.sort(key=lambda d: d["timestamp"].min())
 
-                # Detect overlap: order the files by their start time and check
-                # whether any file begins before the previous data has ended, so
-                # the user is told when the datasets are not strictly sequential.
+                # Merge by interval: the earlier dataset owns its whole time
+                # range, and each later dataset contributes only the portion
+                # after the previous data ends. This resolves overlaps without
+                # relying on exact-matching timestamps (the 5-minute grids may
+                # be phase-shifted between datasets) and never double-counts an
+                # overlapping period.
                 has_overlap = False
-                running_max = None
-                for df in sorted((d for d in dfs if not d.empty),
-                                 key=lambda d: d["timestamp"].min()):
-                    if running_max is not None and df["timestamp"].min() <= running_max:
-                        has_overlap = True
-                    curr_max = df["timestamp"].max()
-                    running_max = curr_max if running_max is None else max(running_max, curr_max)
+                pieces = []
+                running_end = None
+                for d in dfs:
+                    if running_end is not None:
+                        if d["timestamp"].min() <= running_end:
+                            has_overlap = True
+                        d = d[d["timestamp"] > running_end]
+                    if d.empty:
+                        continue
+                    pieces.append(d)
+                    end = d["timestamp"].max()
+                    running_end = end if running_end is None else max(running_end, end)
 
-                # Combine all datasets, order chronologically, and drop any
-                # exact-duplicate timestamps so the number of files and their
-                # upload order no longer affect the result (the earliest-uploaded
-                # file wins on a tie).
-                merge_df = pd.concat(dfs, ignore_index=True)
+                merge_df = pd.concat(pieces, ignore_index=True)
                 merge_df["timestamp"] = pd.to_datetime(merge_df["timestamp"])
-                merge_df = merge_df.sort_values("timestamp", kind="stable")
-                merge_df = merge_df.drop_duplicates(subset="timestamp", keep="first")
-                merge_df = merge_df.reset_index(drop=True)
+                merge_df = merge_df.sort_values("timestamp").reset_index(drop=True)
 
                 start_dt = merge_df["timestamp"].min().strftime("%Y-%m-%d")
                 end_dt = merge_df["timestamp"].max().strftime("%Y-%m-%d")
