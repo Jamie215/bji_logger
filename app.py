@@ -20,6 +20,7 @@ import requests
 
 from app_instance import app, socketio, server
 from pages.data_analysis_page import data_analysis_layout
+from pages.data_comparison_page import data_comparison_layout
 from pages.index_page import index_layout, register_index_callbacks
 import arduino
 
@@ -48,6 +49,8 @@ app.layout = html.Div([
 def display_page(pathname):
     if pathname == "/data-analysis":
         return data_analysis_layout
+    elif pathname == "/data-comparison":
+        return data_comparison_layout
     else:
         return index_layout()
 

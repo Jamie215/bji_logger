@@ -277,7 +277,7 @@ def index_layout():
     
         1. Initialize Device
         2. Data Download
-        3. Data Analysis
+        3. Data Analysis (Single Dataset)
         4. Data Merge
     """
     return html.Div(
@@ -303,9 +303,18 @@ def index_layout():
             dbc.Button(
                 [
                     html.I(className="fas fa-chart-bar page-btn-icon"),
-                    "Data Analysis"
+                    "Data Analysis (Single Dataset)"
                 ],
                 href="/data-analysis",
+                outline=True,
+                className="m-4 page-btn",
+            ),
+            dbc.Button(
+                [
+                    html.I(className="fas fa-balance-scale page-btn-icon"),
+                    "Data Analysis (Comparison)"
+                ],
+                href="/data-comparison",
                 outline=True,
                 className="m-4 page-btn",
             ),

@@ -62,14 +62,14 @@ data_analysis_layout = html.Div([
                                 color="primary",
                                 outline=True,
                                 className="me-2",
-                                disabled=True
+                                disabled=True,
                             ),
                             dbc.Button(
-                                [html.I(className="fas fa-file-csv"), " Download Processed Values (CSV)"],
+                                [html.I(className="fas fa-file-csv"), " Download Values (CSV)"],
                                 id="download-values-btn",
                                 color="primary",
                                 outline=True,
-                                disabled=True
+                                disabled=True,
                             ),
                             dcc.Download(id="download-values-csv"),
                             html.Div(id="pdf-print-dummy", style={"display": "none"}),
@@ -398,23 +398,6 @@ def update_selected_data(start_date, end_date, start_hour, start_minute, end_hou
 
     return selected_df.to_json(date_format="iso", orient="split")
 
-# Enable the export buttons only when data has been uploaded
-@app.callback(
-    Output("download-pdf-btn", "disabled"),
-    Output("download-values-btn", "disabled"),
-    Input("upload-data", "contents")
-)
-def toggle_export_buttons(upload_data):
-    """
-    Enable the PDF and values-CSV download buttons only when data is uploaded
-
-    upload_data: data uploaded to the interface
-    """
-    if upload_data is None:
-        return True, True
-
-    return False, False
-
 @app.callback(
         Output("download-csv-btn", "disabled"),
         Input("upload-data", "contents")
@@ -463,6 +446,23 @@ def download_csv(filename, n_clicks, selected_data):
                 file_status
             )
     return None, None
+
+# Enable the export buttons only when data has been uploaded
+@app.callback(
+    Output("download-pdf-btn", "disabled"),
+    Output("download-values-btn", "disabled"),
+    Input("upload-data", "contents")
+)
+def toggle_export_buttons(upload_data):
+    """
+    Enable the PDF and values-CSV download buttons only when data is uploaded
+
+    upload_data: data uploaded to the interface
+    """
+    if upload_data is None:
+        return True, True
+
+    return False, False
 
 # Trigger the browser's print dialog so the whole page can be saved as a PDF
 app.clientside_callback(
@@ -583,11 +583,17 @@ def aggregate_data(df, unit):
     }
 
     if unit == "hour":
-        df_new = df.resample("h", on="timestamp").steps.sum()
+        grouped = df.resample("h", on="timestamp").steps
+        df_new = grouped.sum()
+        # Untracked bins (device off) become NaN, not 0, so they are never
+        # mistaken for a real zero-step reading.
+        df_new[grouped.count() == 0] = np.nan
         df_new = df_new.to_frame().reset_index()
         df_new["hour"] = df_new["timestamp"].dt.hour
     else:
-        df_new = df.resample("D", on="timestamp").steps.sum()
+        grouped = df.resample("D", on="timestamp").steps
+        df_new = grouped.sum()
+        df_new[grouped.count() == 0] = np.nan
         df_new = df_new.to_frame().reset_index()
         df_new["day"] = df_new["timestamp"].dt.day
         df_new["day_of_week"] = df_new["timestamp"].dt.weekday
@@ -598,6 +604,33 @@ def aggregate_data(df, unit):
             df_new["day_of_week"] = df_new["day_of_week"].map(day_abbreviations)
 
     return df_new
+
+
+# Any gap between consecutive readings longer than this is treated as an
+# untracked period: the line breaks across it instead of bridging two
+# tracked stretches (e.g. the seam between two merged datasets).
+GAP_THRESHOLD = pd.Timedelta("10min")
+
+def break_gaps(df):
+    """
+    Insert a single NaN-valued point in the middle of each untracked gap so a
+    line plot breaks across it rather than drawing a straight line between the
+    last reading before the gap and the first reading after it.
+    """
+    d = df.sort_values("timestamp").reset_index(drop=True)
+    diffs = d["timestamp"].diff()
+    gap_idx = [i for i in d.index if pd.notna(diffs.iloc[i]) and diffs.iloc[i] > GAP_THRESHOLD]
+    if not gap_idx:
+        return d
+
+    inserts = []
+    for i in gap_idx:
+        prev_t = d["timestamp"].iloc[i - 1]
+        curr_t = d["timestamp"].iloc[i]
+        inserts.append({"timestamp": prev_t + (curr_t - prev_t) / 2, "steps": np.nan})
+
+    out = pd.concat([d, pd.DataFrame(inserts)], ignore_index=True)
+    return out.sort_values("timestamp").reset_index(drop=True)
 
 # Display data information used in graphs
 @app.callback(
@@ -900,7 +933,8 @@ def update_scatter(selected_value, selected_data):
         unit_of_time = "day"
 
     else:
-        df_new = df
+        # Break the raw line across any untracked gaps instead of bridging them.
+        df_new = break_gaps(df)
         unit_of_time = "5 minutes"
 
     if df_new.empty:
@@ -910,9 +944,11 @@ def update_scatter(selected_value, selected_data):
             )
         )
 
-    # Plot the aggregated data
+    # Plot the aggregated data. connectgaps=False keeps NaN (untracked) periods
+    # as breaks in the line rather than joining across them.
     plot = go.Figure()
-    plot.add_trace(go.Scatter(x=df_new["timestamp"], y=df_new["steps"], mode="lines+markers"))
+    plot.add_trace(go.Scatter(x=df_new["timestamp"], y=df_new["steps"],
+                              mode="lines+markers", connectgaps=False))
     plot.update_layout(xaxis_title="Date", yaxis_title="Steps", xaxis_tickangle=45)
 
     # Calculate basic information
