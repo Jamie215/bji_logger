@@ -16,6 +16,39 @@ The application is built using Dash & Plotly and offers three features:
 3. **Data Analysis**
     - Provides a high-level summary of the collected data in a dashboard format.
 
+## Building & Releasing
+
+Windows and macOS builds are produced automatically by GitHub Actions
+(`.github/workflows/build.yml`). PyInstaller cannot cross-compile, so each
+binary is built on its own native runner (`windows-latest` / `macos-latest`)
+in parallel.
+
+**To test a build without releasing:** go to the **Actions** tab → *Build
+desktop app* → **Run workflow**. When it finishes, the Windows and macOS zips
+are downloadable from that run's *Artifacts* section (kept 30 days).
+
+**To publish a release for end users:** push a version tag. The same build then
+attaches the binaries to a public GitHub Release:
+
+```bash
+git tag v3.1
+git push origin v3.1
+```
+
+**To build locally instead** (only produces a binary for your current OS):
+
+```bash
+pip install -r requirements.txt pyinstaller
+pyinstaller index.spec --noconfirm
+# output is in dist/BJI_Logger/
+```
+
+> Note: the produced `.exe`/`.app` are unsigned. Windows SmartScreen will warn
+> on first launch, and macOS Gatekeeper will block the app until you approve it
+> (right-click → Open, or *System Settings → Privacy & Security*). Proper code
+> signing/notarization requires paid developer certificates and is a separate
+> setup step.
+
 ## Credits
 This application is based on the PySimpleGUI version of the application developed by Steve Pollmann.
 
